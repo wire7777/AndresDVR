@@ -21,21 +21,24 @@ def init_db():
         db.execute("""
         CREATE TABLE IF NOT EXISTS channels(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            number TEXT,
-            name TEXT,
-            callsign TEXT,
-            program TEXT
+            guide_number TEXT UNIQUE,
+            guide_name TEXT,
+            url TEXT,
+            favorite INTEGER DEFAULT 0,
+            enabled INTEGER DEFAULT 1
         )
         """)
 
         db.execute("""
         CREATE TABLE IF NOT EXISTS recordings(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename TEXT,
+            filename TEXT UNIQUE,
             channel TEXT,
-            start TEXT,
-            stop TEXT,
-            title TEXT
+            title TEXT,
+            start_time TEXT,
+            end_time TEXT,
+            size_bytes INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'Recorded'
         )
         """)
 
@@ -43,15 +46,37 @@ def init_db():
         CREATE TABLE IF NOT EXISTS programs(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             channel TEXT,
-            start TEXT,
-            stop TEXT,
             title TEXT,
             subtitle TEXT,
-            description TEXT
+            description TEXT,
+            start TEXT,
+            stop TEXT,
+            category TEXT,
+            episode TEXT,
+            rating TEXT,
+            is_new INTEGER DEFAULT 0
+        )
+        """)
+
+        db.execute("""
+        CREATE TABLE IF NOT EXISTS scheduled_recordings(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel TEXT,
+            title TEXT,
+            subtitle TEXT,
+            start TEXT,
+            stop TEXT,
+            status TEXT DEFAULT 'Scheduled',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
         """)
 
         db.commit()
+
+
+# --------------------------------------------------
+# RECORDINGS
+# --------------------------------------------------
 
 def list_recordings():
     with connect() as db:
@@ -62,11 +87,15 @@ def list_recordings():
         """).fetchall()
 
 
-
-def add_recording(filename, channel, title,
-                  start_time, end_time="",
-                  size_bytes=0, status="Finished"):
-
+def add_recording(
+    filename,
+    channel,
+    title,
+    start_time,
+    end_time="",
+    size_bytes=0,
+    status="Recording"
+):
     with connect() as db:
         db.execute("""
             INSERT INTO recordings
@@ -80,8 +109,7 @@ def add_recording(filename, channel, title,
                 status
             )
             VALUES (?,?,?,?,?,?,?)
-        """,
-        (
+        """, (
             filename,
             channel,
             title,
@@ -92,23 +120,22 @@ def add_recording(filename, channel, title,
         ))
         db.commit()
 
-def add_recording(filename, channel, start, stop="", title=""):
+
+def finish_recording(filename, end_time, size_bytes):
     with connect() as db:
         db.execute("""
-            INSERT INTO recordings
-            (filename, channel, start, stop, title)
-            VALUES (?,?,?,?,?)
-        """, (filename, channel, start, stop, title))
+            UPDATE recordings
+            SET end_time=?,
+                size_bytes=?,
+                status='Recorded'
+            WHERE filename=?
+        """, (
+            end_time,
+            size_bytes,
+            filename
+        ))
         db.commit()
 
-
-def delete_recording(record_id):
-    with connect() as db:
-        db.execute(
-            "DELETE FROM recordings WHERE id=?",
-            (record_id,)
-        )
-        db.commit()
 
 def delete_recording(filename):
     with connect() as db:
@@ -118,6 +145,10 @@ def delete_recording(filename):
         )
         db.commit()
 
+
+# --------------------------------------------------
+# CHANNELS
+# --------------------------------------------------
 
 def list_channels():
     with connect() as db:
@@ -138,10 +169,131 @@ def add_channel(number, name, url=""):
                 url
             )
             VALUES (?,?,?)
-        """,
-        (
+        """, (
             number,
             name,
             url
         ))
         db.commit()
+
+
+def get_channel(guide_number):
+    with connect() as db:
+        return db.execute("""
+            SELECT *
+            FROM channels
+            WHERE guide_number=?
+        """, (guide_number,)).fetchone()
+
+
+# --------------------------------------------------
+# GUIDE
+# --------------------------------------------------
+
+def get_programs():
+    with connect() as db:
+        rows = db.execute("""
+            SELECT *
+            FROM programs
+            ORDER BY start
+        """).fetchall()
+
+        return [dict(r) for r in rows]
+
+
+def get_programs_for_channel(channel, limit=30):
+    with connect() as db:
+        rows = db.execute("""
+            SELECT *
+            FROM programs
+            WHERE channel=?
+            ORDER BY start
+            LIMIT ?
+        """, (
+            channel,
+            limit
+        )).fetchall()
+
+        return [dict(r) for r in rows]
+
+
+def get_now_next():
+    with connect() as db:
+
+        channels = db.execute("""
+            SELECT guide_number,
+                   guide_name
+            FROM channels
+            WHERE enabled=1
+            ORDER BY guide_number
+        """).fetchall()
+
+        result = []
+
+        for ch in channels:
+
+            programs = db.execute("""
+                SELECT title
+                FROM programs
+                WHERE channel=?
+                ORDER BY start
+                LIMIT 2
+            """, (
+                ch["guide_number"],
+            )).fetchall()
+
+            now_title = None
+            next_title = None
+
+            if len(programs) > 0:
+                now_title = programs[0]["title"]
+
+            if len(programs) > 1:
+                next_title = programs[1]["title"]
+
+            result.append({
+                "guide_number": ch["guide_number"],
+                "guide_name": ch["guide_name"],
+                "now_title": now_title,
+                "next_title": next_title
+            })
+
+        return result
+
+
+# --------------------------------------------------
+# SCHEDULER
+# --------------------------------------------------
+
+def add_scheduled_recording(channel, title, subtitle, start, stop):
+    with connect() as db:
+        db.execute("""
+            INSERT INTO scheduled_recordings
+            (
+                channel,
+                title,
+                subtitle,
+                start,
+                stop,
+                status
+            )
+            VALUES (?,?,?,?,?,'Scheduled')
+        """, (
+            channel,
+            title,
+            subtitle,
+            start,
+            stop
+        ))
+        db.commit()
+
+
+def list_scheduled_recordings():
+    with connect() as db:
+        rows = db.execute("""
+            SELECT *
+            FROM scheduled_recordings
+            ORDER BY start
+        """).fetchall()
+
+        return [dict(r) for r in rows]

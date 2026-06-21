@@ -20,6 +20,7 @@ class Recorder:
             return True
         except Exception:
             self.pidfile.unlink(missing_ok=True)
+            self.currentfile.unlink(missing_ok=True)
             return False
 
     def start(self, channel="17.1", tuner="tuner1", rf_channel="auto:25", program="3"):
@@ -37,7 +38,8 @@ class Recorder:
             filename=filename,
             channel=channel,
             title=f"Manual Recording {channel}",
-            start_time=start_time.isoformat(timespec="seconds")
+            start_time=start_time.isoformat(timespec="seconds"),
+            status="Recording",
         )
 
         subprocess.run(["hdhomerun_config", config.HDHR_DEVICE, "set", f"/{tuner}/channel", rf_channel])
@@ -49,11 +51,12 @@ class Recorder:
             ["hdhomerun_config", config.HDHR_DEVICE, "save", f"/{tuner}", str(outfile)],
             stdout=log,
             stderr=log,
-            preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_IGN)
+            preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_IGN),
         )
 
         self.pidfile.write_text(str(proc.pid))
         self.currentfile.write_text(filename)
+
         return filename
 
     def start_from_channel(self, channel_row):
@@ -67,7 +70,14 @@ class Recorder:
         start_time = datetime.datetime.now()
         timestamp = start_time.strftime("%Y%m%d_%H%M%S")
 
-        safe_name = guide_name.replace(" ", "_").replace("/", "_")
+        safe_name = (
+            guide_name
+            .replace(" ", "_")
+            .replace("/", "_")
+            .replace("\\", "_")
+            .replace(":", "_")
+        )
+
         filename = f"{guide_number.replace('.', '_')}_{safe_name}_{timestamp}.ts"
 
         outfile = config.RECORDINGS / filename
@@ -77,19 +87,30 @@ class Recorder:
             filename=filename,
             channel=guide_number,
             title=f"Manual Recording - {guide_name}",
-            start_time=start_time.isoformat(timespec="seconds")
+            start_time=start_time.isoformat(timespec="seconds"),
+            status="Recording",
         )
 
         log = open(logfile, "w")
 
         proc = subprocess.Popen(
-            ["ffmpeg", "-y", "-i", url, "-c", "copy", str(outfile)],
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                url,
+                "-c",
+                "copy",
+                str(outfile),
+            ],
             stdout=log,
-            stderr=log
+            stderr=log,
+            preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_IGN),
         )
 
         self.pidfile.write_text(str(proc.pid))
         self.currentfile.write_text(filename)
+
         return filename
 
     def stop(self, tuner="tuner1"):
@@ -101,13 +122,31 @@ class Recorder:
         if self.pidfile.exists():
             try:
                 pid = int(self.pidfile.read_text().strip())
+
+                # Try graceful stop first.
                 subprocess.run(["kill", "-INT", str(pid)])
+                try:
+                    subprocess.run(["timeout", "5", "tail", "--pid", str(pid), "-f", "/dev/null"])
+                except Exception:
+                    pass
+
+                # If still running, force stop.
+                subprocess.run(["kill", "-0", str(pid)], check=True)
+                subprocess.run(["kill", "-TERM", str(pid)])
+
+            except subprocess.CalledProcessError:
+                pass
             except Exception:
                 pass
 
             self.pidfile.unlink(missing_ok=True)
 
-        subprocess.run(["hdhomerun_config", config.HDHR_DEVICE, "set", f"/{tuner}/channel", "none"])
+        # Release HDHomeRun tuner if old save mode was used.
+        subprocess.run(
+            ["hdhomerun_config", config.HDHR_DEVICE, "set", f"/{tuner}/channel", "none"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
         if filename:
             path = config.RECORDINGS / filename
