@@ -1,106 +1,147 @@
 import sqlite3
-from app import config
 
-DB = config.BASE / "database" / "andresdvr.db"
+DB = "/home/wire/andresdvr/database/andresdvr.db"
 
 
 def connect():
-    DB.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB)
+    conn = sqlite3.connect(DB, timeout=30)
     conn.row_factory = sqlite3.Row
+
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA busy_timeout=30000")
+    conn.execute("PRAGMA foreign_keys=ON")
+
     return conn
 
 
 def init_db():
     with connect() as db:
+
         db.execute("""
-        CREATE TABLE IF NOT EXISTS recordings (
+        CREATE TABLE IF NOT EXISTS channels(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename TEXT NOT NULL UNIQUE,
-            channel TEXT NOT NULL,
-            title TEXT NOT NULL,
-            start_time TEXT NOT NULL,
-            end_time TEXT,
-            size_bytes INTEGER DEFAULT 0,
-            status TEXT NOT NULL
+            number TEXT,
+            name TEXT,
+            callsign TEXT,
+            program TEXT
         )
         """)
 
         db.execute("""
-        CREATE TABLE IF NOT EXISTS channels (
+        CREATE TABLE IF NOT EXISTS recordings(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            guide_number TEXT NOT NULL UNIQUE,
-            guide_name TEXT,
-            url TEXT,
-            favorite INTEGER DEFAULT 0,
-            enabled INTEGER DEFAULT 1
+            filename TEXT,
+            channel TEXT,
+            start TEXT,
+            stop TEXT,
+            title TEXT
+        )
+        """)
+
+        db.execute("""
+        CREATE TABLE IF NOT EXISTS programs(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel TEXT,
+            start TEXT,
+            stop TEXT,
+            title TEXT,
+            subtitle TEXT,
+            description TEXT
         )
         """)
 
         db.commit()
-
-
-def add_recording(filename, channel, title, start_time):
-    with connect() as db:
-        db.execute("""
-        INSERT OR IGNORE INTO recordings
-        (filename, channel, title, start_time, status)
-        VALUES (?, ?, ?, ?, 'recording')
-        """, (filename, channel, title, start_time))
-        db.commit()
-
-
-def finish_recording(filename, end_time, size_bytes):
-    with connect() as db:
-        db.execute("""
-        UPDATE recordings
-        SET end_time=?, size_bytes=?, status='recorded'
-        WHERE filename=?
-        """, (end_time, size_bytes, filename))
-        db.commit()
-
 
 def list_recordings():
     with connect() as db:
         return db.execute("""
-        SELECT *
-        FROM recordings
-        ORDER BY start_time DESC
+            SELECT *
+            FROM recordings
+            ORDER BY start_time DESC
         """).fetchall()
 
 
-def delete_recording(filename):
+
+def add_recording(filename, channel, title,
+                  start_time, end_time="",
+                  size_bytes=0, status="Finished"):
+
     with connect() as db:
-        db.execute("DELETE FROM recordings WHERE filename=?", (filename,))
+        db.execute("""
+            INSERT INTO recordings
+            (
+                filename,
+                channel,
+                title,
+                start_time,
+                end_time,
+                size_bytes,
+                status
+            )
+            VALUES (?,?,?,?,?,?,?)
+        """,
+        (
+            filename,
+            channel,
+            title,
+            start_time,
+            end_time,
+            size_bytes,
+            status
+        ))
+        db.commit()
+
+def add_recording(filename, channel, start, stop="", title=""):
+    with connect() as db:
+        db.execute("""
+            INSERT INTO recordings
+            (filename, channel, start, stop, title)
+            VALUES (?,?,?,?,?)
+        """, (filename, channel, start, stop, title))
         db.commit()
 
 
-def upsert_channel(guide_number, guide_name, url):
+def delete_recording(record_id):
     with connect() as db:
-        db.execute("""
-        INSERT INTO channels (guide_number, guide_name, url)
-        VALUES (?, ?, ?)
-        ON CONFLICT(guide_number) DO UPDATE SET
-            guide_name=excluded.guide_name,
-            url=excluded.url
-        """, (guide_number, guide_name, url))
+        db.execute(
+            "DELETE FROM recordings WHERE id=?",
+            (record_id,)
+        )
+        db.commit()
+
+def delete_recording(filename):
+    with connect() as db:
+        db.execute(
+            "DELETE FROM recordings WHERE filename=?",
+            (filename,)
+        )
         db.commit()
 
 
 def list_channels():
     with connect() as db:
         return db.execute("""
-        SELECT *
-        FROM channels
-        WHERE enabled=1
-        ORDER BY CAST(guide_number AS REAL)
+            SELECT *
+            FROM channels
+            ORDER BY guide_number
         """).fetchall()
 
 
-def get_channel(guide_number):
+def add_channel(number, name, url=""):
     with connect() as db:
-        return db.execute("""
-        SELECT *
-        FROM channels
-        WHERE guide_number=?
-        """, (guide_number,)).fetchone()
+        db.execute("""
+            INSERT OR REPLACE INTO channels
+            (
+                guide_number,
+                guide_name,
+                url
+            )
+            VALUES (?,?,?)
+        """,
+        (
+            number,
+            name,
+            url
+        ))
+        db.commit()

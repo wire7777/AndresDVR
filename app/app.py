@@ -1,11 +1,13 @@
 from flask import Flask, send_from_directory, redirect, render_template
 from app import config
+from flask import jsonify
 from app.recorder import Recorder
 from app import database
 import subprocess
 import shutil
 from pathlib import Path
 from app import hdhr
+from app import epg
 
 app = Flask(__name__)
 
@@ -132,5 +134,21 @@ def delete_recording(filename):
     database.delete_recording(filename)
     return redirect("/")
 
+@app.route("/import-epg", methods=["POST"])
+def import_epg():
+
+    epg.import_xmltv("/home/wire/guide.xml")
+
+    return redirect("/")
+
+@app.route("/api/guide")
+def api_guide():
+    return jsonify(database.get_now_next())
+
+@app.route("/api/programs")
+def api_programs():
+    return jsonify(database.get_programs())
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=config.PORT)
+
