@@ -1,6 +1,6 @@
 from pathlib import Path
 
-BASE = Path.home() / "andresdvr"
+BASE = Path.home() / "signaldvr"
 
 RECORDINGS = BASE / "recordings"
 LIVEBUFFER = BASE / "livebuffer"

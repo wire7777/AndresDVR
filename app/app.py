@@ -325,7 +325,7 @@ def health():
         tuner = f"HDHomeRun error: {e}"
 
     return f"""
-<h1>AndresDVR Health</h1>
+<h1>SignalDVR Health</h1>
 <p><a href="/">Back</a></p>
 
 <h2>Recorder</h2>

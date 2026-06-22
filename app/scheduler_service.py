@@ -15,7 +15,7 @@ def now_xmltv():
 
 
 def run_scheduler():
-    print("AndresDVR scheduler started", flush=True)
+    print("SignalDVR scheduler started", flush=True)
 
     while True:
         now = now_xmltv()
