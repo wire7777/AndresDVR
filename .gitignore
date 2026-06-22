@@ -40,3 +40,38 @@ guide/*
 *.log
 *.tmp
 .DS_Store
+
+
+# Python virtual environment
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Runtime PID files
+*.pid
+
+# Runtime state files
+*_channel.txt
+*_current.txt
+*_position.txt
+
+# Live TV / Timeshift buffers
+livebuffer/*.ts
+livebuffer/*.m3u8
+livebuffer/*.log
+
+# HLS segments
+livebuffer/timeshift_hls*.ts
+
+# Logs
+logs/*.log
+
+# Database journal files
+*.db-journal
+*.sqlite-journal
+
+# OS files
+.DS_Store
+Thumbs.db
