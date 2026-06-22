@@ -329,13 +329,13 @@ def list_scheduled_recordings():
         return [dict(r) for r in rows]
     
 
-def add_series_recording(title, channel="", only_new=0):
+def add_series_recording(title, channel="", only_new=0, priority=50):
     with connect() as db:
         db.execute("""
             INSERT INTO series_recordings
-            (title, channel, only_new, enabled)
-            VALUES (?, ?, ?, 1)
-        """, (title, channel, only_new))
+            (title, channel, only_new, priority, enabled)
+            VALUES (?, ?, ?, ?, 1)
+        """, (title, channel, only_new, priority))
         db.commit()
 
 
@@ -410,7 +410,26 @@ def apply_series_rules():
 
         db.commit()
         return created
-    
+def set_series_priority(series_id, priority):
+    with connect() as db:
+        db.execute("""
+            UPDATE series_recordings
+            SET priority=?
+            WHERE id=?
+        """, (priority, series_id))
+        db.commit()
+
+
+def list_series_recordings():
+    with connect() as db:
+        rows = db.execute("""
+            SELECT *
+            FROM series_recordings
+            WHERE enabled=1
+            ORDER BY priority DESC, title
+        """).fetchall()
+
+        return [dict(r) for r in rows]
 
 
 # ================================================================
@@ -436,4 +455,105 @@ def expire_old_scheduled_recordings(now):
         db.commit()
 
 
+def get_guide_grid(limit_channels=20, limit_programs=8):
+    with connect() as db:
+        channels = db.execute("""
+            SELECT guide_number, guide_name
+            FROM channels
+            WHERE enabled=1
+            ORDER BY guide_number
+            LIMIT ?
+        """, (limit_channels,)).fetchall()
 
+        result = []
+
+        for ch in channels:
+            programs = db.execute("""
+                SELECT *
+                FROM programs
+                WHERE channel=?
+                ORDER BY start
+                LIMIT ?
+            """, (ch["guide_number"], limit_programs)).fetchall()
+
+            result.append({
+                "guide_number": ch["guide_number"],
+                "guide_name": ch["guide_name"],
+                "programs": [dict(p) for p in programs]
+            })
+
+        return result
+
+
+
+def get_schedule_conflicts():
+    with connect() as db:
+        rows = db.execute("""
+            SELECT
+                a.id AS id1,
+                a.title AS title1,
+                a.channel AS channel1,
+                a.start AS start1,
+                a.stop AS stop1,
+
+                b.id AS id2,
+                b.title AS title2,
+                b.channel AS channel2,
+                b.start AS start2,
+                b.stop AS stop2
+
+            FROM scheduled_recordings a
+            JOIN scheduled_recordings b
+              ON a.id < b.id
+             AND a.status IN ('Scheduled', 'Recording')
+             AND b.status IN ('Scheduled', 'Recording')
+             AND substr(a.start, 1, 14) < substr(b.stop, 1, 14)
+             AND substr(b.start, 1, 14) < substr(a.stop, 1, 14)
+            ORDER BY a.start
+        """).fetchall()
+
+        return [dict(r) for r in rows]
+
+
+...
+
+def list_series_recordings():
+    ...
+    return [dict(r) for r in rows]
+
+
+def get_schedule_conflicts(max_tuners=4):
+
+    with connect() as db:
+
+        rows = db.execute("""
+            SELECT *
+            FROM scheduled_recordings
+            WHERE status IN ('Scheduled','Recording')
+            ORDER BY start
+        """).fetchall()
+
+    rows = [dict(r) for r in rows]
+
+    conflicts = []
+
+    for r in rows:
+
+        overlap = []
+
+        for other in rows:
+
+            if (
+                other["start"][:14] < r["stop"][:14]
+                and other["stop"][:14] > r["start"][:14]
+            ):
+                overlap.append(other)
+
+        if len(overlap) > max_tuners:
+            conflicts.append({
+                "recording": r,
+                "count": len(overlap),
+                "overlap": overlap
+            })
+
+    return conflicts

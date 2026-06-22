@@ -2,6 +2,7 @@ import time
 import datetime
 
 from app import database
+from app import config
 from app import tuner
 from app.recorder import Recorder
 
@@ -25,8 +26,14 @@ def run_scheduler():
         scheduled = database.list_scheduled_recordings()
 
         for item in scheduled:
-            start = item["start"][:14]
-            stop = item["stop"][:14]
+            start_dt = datetime.datetime.strptime(item["start"][:14], "%Y%m%d%H%M%S")
+            stop_dt = datetime.datetime.strptime(item["stop"][:14], "%Y%m%d%H%M%S")
+
+            start_dt = start_dt - datetime.timedelta(seconds=config.START_PADDING_SECONDS)
+            stop_dt = stop_dt + datetime.timedelta(seconds=config.STOP_PADDING_SECONDS)
+
+            start = start_dt.strftime("%Y%m%d%H%M%S")
+            stop = stop_dt.strftime("%Y%m%d%H%M%S")
             status = item["status"]
 
             # Start scheduled recording.

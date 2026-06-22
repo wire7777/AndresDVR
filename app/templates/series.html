@@ -2,49 +2,186 @@
 <html>
 
 <head>
-    <title>Series Recordings</title>
+    <title>AndresDVR - Series Recordings</title>
+
     <style>
         body {
             background: #111;
             color: #eee;
-            font-family: Arial;
+            font-family: Arial, Helvetica, sans-serif;
             margin: 30px;
         }
 
+        h1 {
+            color: #55ccff;
+        }
+
         a {
-            color: #4da3ff;
+            color: #66b3ff;
+            text-decoration: none;
         }
 
         .card {
             background: #1d1d1d;
             border: 1px solid #333;
             border-radius: 12px;
-            padding: 16px;
-            margin: 12px 0;
+            padding: 18px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            background: #2d7cff;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 3px;
+        }
+
+        button:hover {
+            background: #4d95ff;
+        }
+
+        .delete {
+            background: #aa2222;
+        }
+
+        .delete:hover {
+            background: #cc3333;
+        }
+
+        .priority {
+            color: #ffd966;
+            font-weight: bold;
+        }
+
+        .channel {
+            color: #7dd3fc;
         }
 
         .status {
             color: #55ff88;
         }
+
+        .topbar {
+            margin-bottom: 20px;
+        }
     </style>
+
 </head>
 
 <body>
 
-    <h1>🔁 Series Recordings</h1>
-    <p><a href="/">Back Home</a> | <a href="/guide">Guide</a> | <a href="/scheduled">Scheduled</a></p>
+    <div class="topbar">
+
+        <h1>🔁 Series Recording Rules</h1>
+
+        <p>
+
+            <a href="/">Home</a> |
+
+            <a href="/guide">Guide</a> |
+
+            <a href="/scheduled">Scheduled Recordings</a>
+
+        </p>
+
+        <form action="/series/apply" method="post">
+            <button type="submit">
+                Apply Series Rules
+            </button>
+        </form>
+
+    </div>
+
+
+    {% if series|length == 0 %}
+
+    <h2>No Series Recording Rules Yet</h2>
+
+    <p>
+        Go into the Guide and click
+        <b>🔁 Record Series</b>
+        on any program.
+    </p>
+
+    {% endif %}
+
 
     {% for s in series %}
+
     <div class="card">
+
         <h2>{{ s["title"] }}</h2>
-        <p>Channel: {{ s["channel"] or "Any" }}</p>
-        <p class="status">Enabled: {{ s["enabled"] }}</p>
-        <form action="/series/apply" method="post">
-            <button type="submit">Apply Series Rules</button>
+
+        <p class="channel">
+
+            Channel:
+            <b>{{ s["channel"] or "Any Channel" }}</b>
+
+        </p>
+
+        <p class="priority">
+
+            Priority:
+            {{ s["priority"] }}
+
+        </p>
+
+        <p class="status">
+
+            Enabled:
+            {{ s["enabled"] }}
+
+        </p>
+
+
+        <form action="/series/priority/{{ s['id'] }}/100" method="post" style="display:inline;">
+
+            <button>
+
+                ⭐⭐⭐ High
+
+            </button>
+
         </form>
+
+
+        <form action="/series/priority/{{ s['id'] }}/50" method="post" style="display:inline;">
+
+            <button>
+
+                ⭐⭐ Normal
+
+            </button>
+
+        </form>
+
+
+        <form action="/series/priority/{{ s['id'] }}/10" method="post" style="display:inline;">
+
+            <button>
+
+                ⭐ Low
+
+            </button>
+
+        </form>
+
+
+        <form action="/series/delete/{{ s['id'] }}" method="post" style="display:inline;">
+
+            <button class="delete">
+
+                Delete Rule
+
+            </button>
+
+        </form>
+
     </div>
-    {% else %}
-    <p>No series recordings yet.</p>
+
     {% endfor %}
 
 </body>

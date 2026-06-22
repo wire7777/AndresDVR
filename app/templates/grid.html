@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>AndresDVR TV Grid</title>
+
+    <style>
+        body {
+            background: #111;
+            color: #eee;
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 20px;
+        }
+
+        a {
+            color: #4da3ff;
+            text-decoration: none;
+        }
+
+        h1 {
+            color: #55ccff;
+        }
+
+        .nav {
+            margin-bottom: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 150px repeat(8, 230px);
+            gap: 6px;
+            overflow-x: auto;
+            align-items: stretch;
+        }
+
+        .header {
+            background: #222;
+            color: #ffd966;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .channel {
+            background: #222;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+            border: 1px solid #333;
+        }
+
+        .program {
+            color: white;
+            border-radius: 8px;
+            padding: 10px;
+            min-height: 110px;
+            border: 1px solid #000;
+            overflow: hidden;
+        }
+
+        .title {
+            font-weight: bold;
+            font-size: 15px;
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            color: #ddd;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .time {
+            color: #ffd966;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .category {
+            font-size: 12px;
+            color: #eee;
+            opacity: 0.85;
+            margin-bottom: 8px;
+        }
+
+        button {
+            background: #c33;
+            color: white;
+            border: 0;
+            border-radius: 6px;
+            padding: 6px 10px;
+            margin-top: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #e04444;
+        }
+
+        .series {
+            background: #2d7cff;
+        }
+
+        .series:hover {
+            background: #4d95ff;
+        }
+
+        .empty {
+            background: #181818;
+            border: 1px dashed #333;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>📺 AndresDVR TV Grid</h1>
+
+    <div class="nav">
+        <a href="/">Home</a> |
+        <a href="/guide">Guide</a> |
+        <a href="/scheduled">Scheduled</a> |
+        <a href="/series">Series</a>
+    </div>
+
+    <div class="grid">
+
+        <div class="header">Channel</div>
+        <div class="header">Program 1</div>
+        <div class="header">Program 2</div>
+        <div class="header">Program 3</div>
+        <div class="header">Program 4</div>
+        <div class="header">Program 5</div>
+        <div class="header">Program 6</div>
+        <div class="header">Program 7</div>
+        <div class="header">Program 8</div>
+
+        {% for ch in grid %}
+
+        <div class="channel">
+            {{ ch["guide_number"] }}<br>
+            {{ ch["guide_name"] }}
+        </div>
+
+        {% for p in ch["programs"] %}
+
+        <div class="program" style="background: {{ p['category']|category_color }};">
+
+            <div class="title">
+                {{ p["title"] }}
+            </div>
+
+            {% if p["subtitle"] %}
+            <div class="subtitle">
+                {{ p["subtitle"] }}
+            </div>
+            {% endif %}
+
+            <div class="time">
+                {{ p["start"] }} → {{ p["stop"] }}
+            </div>
+
+            {% if p["category"] %}
+            <div class="category">
+                {{ p["category"] }}
+            </div>
+            {% endif %}
+
+            <form action="/schedule-program" method="post">
+                <input type="hidden" name="channel" value="{{ p['channel'] }}">
+                <input type="hidden" name="title" value="{{ p['title'] }}">
+                <input type="hidden" name="subtitle" value="{{ p['subtitle'] }}">
+                <input type="hidden" name="start" value="{{ p['start'] }}">
+                <input type="hidden" name="stop" value="{{ p['stop'] }}">
+                <button type="submit">● Record</button>
+            </form>
+
+            <form action="/series/add" method="post">
+                <input type="hidden" name="channel" value="{{ p['channel'] }}">
+                <input type="hidden" name="title" value="{{ p['title'] }}">
+                <button class="series" type="submit">🔁 Series</button>
+            </form>
+
+        </div>
+
+        {% endfor %}
+
+        {% set missing = 8 - (ch["programs"]|length) %}
+        {% for i in range(missing) %}
+        <div class="empty"></div>
+        {% endfor %}
+
+        {% endfor %}
+
+    </div>
+
+</body>
+
+</html>

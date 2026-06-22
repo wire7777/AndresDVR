@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>AndresDVR Live TV</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+    <style>
+        body {
+            margin: 0;
+            background: #111;
+            color: white;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        header {
+            background: #1b1b1b;
+            padding: 15px 25px;
+            border-bottom: 1px solid #333;
+        }
+
+        h1 {
+            margin: 0;
+            color: #55b6ff;
+        }
+
+        a {
+            color: #55b6ff;
+            text-decoration: none;
+        }
+
+        #status {
+            color: #ffd966;
+            margin-top: 8px;
+            font-weight: bold;
+        }
+
+        .player {
+            position: relative;
+            width: 100%;
+            background: black;
+        }
+
+        video {
+            width: 100%;
+            max-height: 70vh;
+            background: black;
+        }
+
+        #overlay {
+            position: absolute;
+            left: 25px;
+            top: 25px;
+
+            background: rgba(0, 0, 0, .70);
+
+            padding: 18px;
+
+            border-radius: 10px;
+
+            display: none;
+        }
+
+        #overlay h2 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        #overlay p {
+            margin-top: 8px;
+            color: #ccc;
+        }
+
+        .controls {
+
+            padding: 20px;
+
+            background: #181818;
+
+        }
+
+        .channels {
+
+            display: grid;
+
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+
+            gap: 10px;
+        }
+
+        button {
+
+            width: 100%;
+
+            padding: 12px;
+
+            font-size: 15px;
+
+            border-radius: 8px;
+
+            border: none;
+
+            cursor: pointer;
+
+            background: #1976d2;
+
+            color: white;
+        }
+
+        button:hover {
+
+            background: #3399ff;
+        }
+
+        .stop {
+
+            background: #aa2222;
+
+            margin-top: 20px;
+        }
+
+        .stop:hover {
+
+            background: #cc3333;
+        }
+
+        .watching {
+
+            font-size: 18px;
+
+            color: #55ff88;
+
+            margin-bottom: 15px;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <header>
+
+        <h1>📺 AndresDVR Live TV</h1>
+
+        <div>
+
+            <a href="/">Home</a> |
+
+            <a href="/guide">Guide</a> |
+
+            <a href="/grid">Grid</a> |
+
+            <a href="/recordings">Recordings</a>
+
+        </div>
+
+        <div id="status">
+            Ready
+        </div>
+
+    </header>
+
+    <div class="player">
+
+        <video id="video" controls autoplay playsinline>
+        </video>
+
+        <div id="overlay">
+
+            <h2 id="overlayTitle">
+
+                Loading...
+
+            </h2>
+
+            <p id="overlayText">
+
+                Please wait...
+
+            </p>
+
+        </div>
+
+    </div>
+
+    <div class="controls">
+
+        {% if current %}
+        <div class="watching">
+
+            Now Watching
+
+            <strong>{{ current }}</strong>
+
+        </div>
+        {% endif %}
+
+        <div class="channels">
+
+            {% for ch in channels %}
+
+            <button
+                onclick="changeChannel('{{ ch['guide_number'] }}','{{ ch['guide_number'] }} {{ ch['guide_name'] }}')">
+
+                {{ ch["guide_number"] }}
+
+                {{ ch["guide_name"] }}
+
+            </button>
+
+            {% endfor %}
+
+        </div>
+
+        <button class="stop" onclick="stopLive()">
+
+            ■ Stop Live TV
+
+        </button>
+        <button onclick="loadPlayer()">
+            ↻ Reload Player
+        </button>
+
+    </div>
+
+    <script>
+
+        const video = document.getElementById("video");
+
+        const status = document.getElementById("status");
+
+        const overlay = document.getElementById("overlay");
+
+        const playlist = "/livebuffer/live.m3u8";
+
+        let hls = null;
+
+        function showOverlay(title) {
+
+            document.getElementById("overlayTitle").innerText = title;
+
+            document.getElementById("overlayText").innerText = "Loading Live TV...";
+
+            overlay.style.display = "block";
+
+            setTimeout(() => {
+
+                overlay.style.display = "none";
+
+            }, 3000);
+
+        }
+
+        function loadPlayer() {
+
+            fetch(playlist + "?" + Date.now(), {
+
+                cache: "no-store"
+
+            })
+
+                .then(r => {
+
+                    if (!r.ok) {
+
+                        throw new Error();
+
+                    }
+
+                    if (hls) {
+
+                        hls.destroy();
+
+                    }
+
+                    hls = new Hls({
+
+                        liveSyncDuration: 4,
+
+                        liveMaxLatencyDuration: 12,
+
+                        lowLatencyMode: true,
+
+                        enableWorker: true
+
+                    });
+
+                    hls.loadSource(playlist + "?" + Date.now());
+
+                    hls.attachMedia(video);
+
+                    hls.on(Hls.Events.MANIFEST_PARSED, function () {
+
+                        status.innerText = "LIVE";
+
+                        video.play();
+
+                    });
+
+                    hls.on(Hls.Events.ERROR, function () {
+
+                        status.innerText = "Reconnecting...";
+
+                        setTimeout(loadPlayer, 1000);
+
+                    });
+
+                })
+
+                .catch(() => {
+
+                    status.innerText = "Waiting for stream...";
+
+                    setTimeout(loadPlayer, 1000);
+
+                });
+
+        }
+
+        function changeChannel(channel, name) {
+
+            showOverlay(name);
+
+            status.innerText = "Changing channel...";
+
+            fetch("/api/live/start/" + channel, {
+
+                method: "POST"
+
+            })
+
+                .then(r => r.json())
+
+                .then(() => {
+
+                    setTimeout(loadPlayer, 1500);
+
+                });
+
+        }
+
+        function stopLive() {
+
+            fetch("/live/stop", {
+
+                method: "POST"
+
+            }).then(() => {
+
+                if (hls) {
+
+                    hls.destroy();
+
+                }
+
+                video.removeAttribute("src");
+
+                video.load();
+
+                status.innerText = "Stopped";
+
+            });
+
+        }
+
+        loadPlayer();
+
+    </script>
+
+</body>
+
+</html>

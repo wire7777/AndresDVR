@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>AndresDVR Recordings</title>
+    <style>
+        body {
+            background: #111;
+            color: #eee;
+            font-family: Arial;
+            margin: 30px;
+        }
+
+        a {
+            color: #4da3ff;
+        }
+
+        .library {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 18px;
+        }
+
+        .card {
+            background: #1d1d1d;
+            border: 1px solid #333;
+            border-radius: 14px;
+            padding: 18px;
+        }
+
+        .thumb {
+            background: #333;
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 42px;
+        }
+
+        .meta {
+            color: #bbb;
+        }
+
+        button {
+            background: #aa2222;
+            color: white;
+            border: 0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>🎬 AndresDVR Recordings</h1>
+    <p><a href="/">Home</a> | <a href="/guide">Guide</a> | <a href="/grid">Grid</a> | <a href="/search">Search</a></p>
+
+    <div class="library">
+        {% for r in recordings %}
+        <div class="card">
+            {% if r["thumbnail"] %}
+            <img class="thumb" src="/thumbs/{{ r['thumbnail'] }}">
+            {% else %}
+            <div class="thumb">📺</div>
+            {% endif %}
+
+            <h2>{{ r["title"] }}</h2>
+
+            <p class="meta">
+                Channel: {{ r["channel"] }}<br>
+                Status: {{ r["status"] }}<br>
+                Started: {{ r["start_time"] }}<br>
+                Size: {{ "%.1f"|format((r["size_bytes"] or 0) / 1024 / 1024) }} MB
+            </p>
+
+            <p>
+                <a href="/play/{{ r['filename'] }}">▶ Play</a>
+            </p>
+
+            <form action="/delete/{{ r['filename'] }}" method="post">
+                <button type="submit">Delete</button>
+            </form>
+        </div>
+        {% else %}
+        <p>No recordings yet.</p>
+        {% endfor %}
+    </div>
+
+</body>
+
+</html>
