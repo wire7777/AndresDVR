@@ -1,47 +1,42 @@
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
-
-# Virtual env
+*.egg-info/
+.venv/
 venv/
-.env
 
-# Logs
-logs/*
-!logs/.gitkeep
+# VS Code
+.vscode/
 
-# Live TV buffer
+# Database
+database/*.db
+database/*.db-*
+*.sqlite
+*.sqlite3
+
+# Live TV
 livebuffer/*
 !livebuffer/.gitkeep
-
-# Thumbnails
-thumbnails/*
-!thumbnails/.gitkeep
-
-# Guide cache
-guide/*
-!guide/.gitkeep
-
-# Database backups
-backup/*
-!backup/.gitkeep
 
 # Recordings
 recordings/*
 !recordings/.gitkeep
 
-# SQLite database
-*.db
-*.sqlite
-*.sqlite3
+# Thumbnails
+thumbnails/*
+!thumbnails/.gitkeep
+
+# Logs
+logs/*
+!logs/.gitkeep
+
+# Guide data
+guide/*
+!guide/.gitkeep
 
 # Linux
-*.swp
-*~
-
-# VS Code
-.vscode/
-
-# macOS
+*.pid
+*.log
+*.tmp
 .DS_Store
