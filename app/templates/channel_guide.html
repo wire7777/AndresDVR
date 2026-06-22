@@ -183,17 +183,24 @@
                 <form action="/schedule-program" method="post">
 
                 </form>
-                <form action="/record-program" method="post">
-
+                <form action="/schedule-program" method="post">
                     <input type="hidden" name="channel" value="{{ p['channel'] }}">
                     <input type="hidden" name="title" value="{{ p['title'] }}">
+                    <input type="hidden" name="subtitle" value="{{ p['subtitle'] }}">
                     <input type="hidden" name="start" value="{{ p['start'] }}">
                     <input type="hidden" name="stop" value="{{ p['stop'] }}">
 
                     <button class="button record" type="submit">
                         ⏺ Record This Program
                     </button>
+                    <form action="/series/add" method="post" style="margin-top:8px;">
+                        <input type="hidden" name="channel" value="{{ p['channel'] }}">
+                        <input type="hidden" name="title" value="{{ p['title'] }}">
 
+                        <button class="button" type="submit">
+                            🔁 Record Series
+                        </button>
+                    </form>
                 </form>
 
             </div>

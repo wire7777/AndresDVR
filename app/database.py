@@ -71,6 +71,17 @@ def init_db():
         )
         """)
 
+        db.execute("""
+        CREATE TABLE IF NOT EXISTS series_recordings(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            channel TEXT,
+            only_new INTEGER DEFAULT 0,
+            enabled INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+
         db.commit()
 
 
@@ -265,6 +276,25 @@ def get_now_next():
 # SCHEDULER
 # --------------------------------------------------
 
+def update_schedule_status(schedule_id, status):
+    with connect() as db:
+        db.execute("""
+            UPDATE scheduled_recordings
+            SET status=?
+            WHERE id=?
+        """, (status, schedule_id))
+        db.commit()
+
+def get_active_schedule():
+    with connect() as db:
+        return db.execute("""
+            SELECT *
+            FROM scheduled_recordings
+            WHERE status='Recording'
+            LIMIT 1
+        """).fetchone()
+
+
 def add_scheduled_recording(channel, title, subtitle, start, stop):
     with connect() as db:
         db.execute("""
@@ -297,3 +327,103 @@ def list_scheduled_recordings():
         """).fetchall()
 
         return [dict(r) for r in rows]
+    
+
+def add_series_recording(title, channel="", only_new=0):
+    with connect() as db:
+        db.execute("""
+            INSERT INTO series_recordings
+            (title, channel, only_new, enabled)
+            VALUES (?, ?, ?, 1)
+        """, (title, channel, only_new))
+        db.commit()
+
+
+def list_series_recordings():
+    with connect() as db:
+        rows = db.execute("""
+            SELECT *
+            FROM series_recordings
+            WHERE enabled=1
+            ORDER BY title
+        """).fetchall()
+        return [dict(r) for r in rows]
+
+
+def delete_series_recording(series_id):
+    with connect() as db:
+        db.execute(
+            "DELETE FROM series_recordings WHERE id=?",
+            (series_id,)
+        )
+        db.commit()
+
+def apply_series_rules():
+    with connect() as db:
+        rules = db.execute("""
+            SELECT *
+            FROM series_recordings
+            WHERE enabled=1
+        """).fetchall()
+
+        created = 0
+
+        for rule in rules:
+            if rule["channel"]:
+                programs = db.execute("""
+                    SELECT *
+                    FROM programs
+                    WHERE title=?
+                      AND channel=?
+                    ORDER BY start
+                """, (rule["title"], rule["channel"])).fetchall()
+            else:
+                programs = db.execute("""
+                    SELECT *
+                    FROM programs
+                    WHERE title=?
+                    ORDER BY start
+                """, (rule["title"],)).fetchall()
+
+            for p in programs:
+                exists = db.execute("""
+                    SELECT id
+                    FROM scheduled_recordings
+                    WHERE channel=?
+                      AND title=?
+                      AND start=?
+                """, (p["channel"], p["title"], p["start"])).fetchone()
+
+                if not exists:
+                    db.execute("""
+                        INSERT INTO scheduled_recordings
+                        (channel, title, subtitle, start, stop, status)
+                        VALUES (?, ?, ?, ?, ?, 'Scheduled')
+                    """, (
+                        p["channel"],
+                        p["title"],
+                        p["subtitle"],
+                        p["start"],
+                        p["stop"],
+                    ))
+                    created += 1
+
+        db.commit()
+        return created
+    
+
+
+# ================================================================
+# delete_recording
+# ================================================================
+
+def delete_scheduled_recording(schedule_id):
+    with connect() as db:
+        db.execute(
+            "DELETE FROM scheduled_recordings WHERE id=?",
+            (schedule_id,)
+        )
+        db.commit()
+
+
+

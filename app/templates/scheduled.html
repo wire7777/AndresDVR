@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Scheduled Recordings</title>
+    <style>
+        body {
+            background: #111;
+            color: #eee;
+            font-family: Arial;
+            margin: 30px;
+        }
+
+        a {
+            color: #4da3ff;
+        }
+
+        .card {
+            background: #1d1d1d;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 12px 0;
+        }
+
+        .time {
+            color: #ffd966;
+        }
+
+        .status {
+            color: #55ff88;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>📅 Scheduled Recordings</h1>
+    <p><a href="/">Back Home</a> | <a href="/guide">Guide</a></p>
+
+    {% for r in scheduled %}
+    <div class="card">
+        <h2>{{ r["title"] }}</h2>
+
+        {% if r["subtitle"] %}
+        <p><b>{{ r["subtitle"] }}</b></p>
+        {% endif %}
+
+        <p>Channel: {{ r["channel"] }}</p>
+        <p class="time">{{ r["start"] }} → {{ r["stop"] }}</p>
+        <p class="status">Status: {{ r["status"] }}</p>
+        <form action="/scheduled/delete/{{ r['id'] }}" method="post">
+            <button type="submit">Cancel</button>
+        </form>
+    </div>
+    {% else %}
+    <p>No scheduled recordings yet.</p>
+    {% endfor %}
+
+</body>
+
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Series Recordings</title>
+    <style>
+        body {
+            background: #111;
+            color: #eee;
+            font-family: Arial;
+            margin: 30px;
+        }
+
+        a {
+            color: #4da3ff;
+        }
+
+        .card {
+            background: #1d1d1d;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 12px 0;
+        }
+
+        .status {
+            color: #55ff88;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>🔁 Series Recordings</h1>
+    <p><a href="/">Back Home</a> | <a href="/guide">Guide</a> | <a href="/scheduled">Scheduled</a></p>
+
+    {% for s in series %}
+    <div class="card">
+        <h2>{{ s["title"] }}</h2>
+        <p>Channel: {{ s["channel"] or "Any" }}</p>
+        <p class="status">Enabled: {{ s["enabled"] }}</p>
+        <form action="/series/apply" method="post">
+            <button type="submit">Apply Series Rules</button>
+        </form>
+    </div>
+    {% else %}
+    <p>No series recordings yet.</p>
+    {% endfor %}
+
+</body>
+
+</html>

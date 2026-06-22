@@ -1,9 +1,10 @@
-from app.database import connect
 from app import config
-import xml.etree.ElementTree as ET
-import urllib.request
+from app import database
+
 import gzip
 import shutil
+import urllib.request
+import xml.etree.ElementTree as ET
 
 
 def download_guide():
@@ -20,6 +21,7 @@ def download_guide():
         with gzip.open(tmp_file, "rb") as src:
             with open(config.GUIDE_XML, "wb") as dst:
                 shutil.copyfileobj(src, dst)
+        tmp_file.unlink(missing_ok=True)
     else:
         shutil.move(tmp_file, config.GUIDE_XML)
 
@@ -30,7 +32,7 @@ def import_xmltv(filename):
     tree = ET.parse(filename)
     root = tree.getroot()
 
-    with connect() as db:
+    with database.connect() as db:
         db.execute("DELETE FROM programs")
 
         for p in root.findall("programme"):
@@ -43,9 +45,12 @@ def import_xmltv(filename):
                     description,
                     start,
                     stop,
-                    category
+                    category,
+                    episode,
+                    rating,
+                    is_new
                 )
-                VALUES (?,?,?,?,?,?,?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 p.attrib.get("channel", ""),
                 p.findtext("title", ""),
@@ -53,7 +58,10 @@ def import_xmltv(filename):
                 p.findtext("desc", ""),
                 p.attrib.get("start", ""),
                 p.attrib.get("stop", ""),
-                p.findtext("category", "")
+                p.findtext("category", ""),
+                p.findtext("episode-num", ""),
+                p.findtext("rating/value", ""),
+                1 if p.find("new") is not None else 0,
             ))
 
         db.commit()
@@ -62,3 +70,8 @@ def import_xmltv(filename):
 def update_guide():
     guide_file = download_guide()
     import_xmltv(guide_file)
+
+    created = database.apply_series_rules()
+    print(f"Created {created} scheduled recordings from series rules.", flush=True)
+
+    return guide_file

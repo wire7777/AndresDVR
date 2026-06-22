@@ -175,7 +175,32 @@ def schedule_program():
 @app.route("/scheduled")
 def scheduled_page():
     scheduled = database.list_scheduled_recordings()
-    return jsonify(scheduled)
+    return render_template("scheduled.html", scheduled=scheduled)
+
+@app.route("/scheduled/delete/<int:schedule_id>", methods=["POST"])
+def delete_scheduled(schedule_id):
+    database.delete_scheduled_recording(schedule_id)
+    return redirect("/scheduled")
+
+@app.route("/series/add", methods=["POST"])
+def add_series():
+    database.add_series_recording(
+        title=request.form.get("title", ""),
+        channel=request.form.get("channel", ""),
+        only_new=0,
+    )
+    return redirect("/series")
+
+@app.route("/series")
+def series_page():
+    series = database.list_series_recordings()
+    return render_template("series.html", series=series)
+
+@app.route("/series/apply", methods=["POST"])
+def apply_series():
+    database.apply_series_rules()
+    return redirect("/scheduled")
+
 
 if __name__ == "__main__":
     app.run(
