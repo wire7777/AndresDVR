@@ -1,15 +1,14 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
 
 <head>
-    <title>SignalDVR TV Grid</title>
-
+    <title>SignalDVR Grid Guide</title>
     <style>
         body {
             background: #111;
             color: #eee;
-            font-family: Arial, Helvetica, sans-serif;
-            margin: 20px;
+            font-family: Arial;
+            margin: 25px;
         }
 
         a {
@@ -17,186 +16,182 @@
             text-decoration: none;
         }
 
-        h1 {
-            color: #55ccff;
-        }
-
-        .nav {
-            margin-bottom: 20px;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: 150px repeat(8, 230px);
-            gap: 6px;
+        .guide-wrap {
             overflow-x: auto;
-            align-items: stretch;
+            border: 1px solid #333;
+            border-radius: 12px;
+            background: #151515;
+        }
+
+        .guide {
+            display: grid;
+            grid-template-columns: 160px repeat(6, 260px);
+            min-width: 1720px;
+        }
+
+        .cell {
+            border-right: 1px solid #333;
+            border-bottom: 1px solid #333;
+            padding: 10px;
+            min-height: 120px;
+            background: #181818;
         }
 
         .header {
             background: #222;
-            color: #ffd966;
-            padding: 10px;
-            border-radius: 8px;
             font-weight: bold;
-            text-align: center;
+            color: #aaa;
+            min-height: 45px;
         }
 
         .channel {
-            background: #222;
-            padding: 12px;
-            border-radius: 8px;
+            background: #202020;
             font-weight: bold;
             position: sticky;
             left: 0;
-            z-index: 5;
-            border: 1px solid #333;
+            z-index: 2;
         }
 
-        .program {
-            color: white;
-            border-radius: 8px;
-            padding: 10px;
-            min-height: 110px;
-            border: 1px solid #000;
-            overflow: hidden;
-        }
-
-        .title {
-            font-weight: bold;
-            font-size: 15px;
-            margin-bottom: 6px;
-        }
-
-        .subtitle {
-            color: #ddd;
-            font-size: 13px;
-            margin-bottom: 6px;
+        .program.live {
+            border-left: 5px solid #55ff88;
+            box-shadow: inset 0 0 0 1px #55ff88;
         }
 
         .time {
-            color: #ffd966;
+            color: #ddd;
             font-size: 12px;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
         }
 
-        .category {
+        .title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .desc {
+            color: #ddd;
             font-size: 12px;
-            color: #eee;
-            opacity: 0.85;
-            margin-bottom: 8px;
+            margin-top: 6px;
+            line-height: 1.35;
+        }
+
+        .progress-bg {
+            margin-top: 8px;
+            background: rgba(0, 0, 0, .35);
+            border-radius: 10px;
+            overflow: hidden;
+            height: 8px;
+        }
+
+        .progress-fill {
+            height: 8px;
+            background: #55ff88;
+        }
+
+        .live-text {
+            font-size: 12px;
+            color: #55ff88;
+            margin-top: 4px;
+            font-weight: bold;
         }
 
         button {
-            background: #c33;
+            background: #2196f3;
             color: white;
             border: 0;
+            padding: 7px 10px;
             border-radius: 6px;
-            padding: 6px 10px;
-            margin-top: 4px;
             cursor: pointer;
+            margin-top: 8px;
         }
 
-        button:hover {
-            background: #e04444;
-        }
-
-        .series {
-            background: #2d7cff;
-        }
-
-        .series:hover {
-            background: #4d95ff;
-        }
-
-        .empty {
-            background: #181818;
-            border: 1px dashed #333;
-            border-radius: 8px;
+        .view-btn {
+            display: inline-block;
+            background: #444;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            margin-top: 8px;
         }
     </style>
 </head>
 
 <body>
 
-    <h1>📺 SignalDVR TV Grid</h1>
+    <h1>📅 SignalDVR Grid Guide</h1>
 
-    <div class="nav">
+    <p>
         <a href="/">Home</a> |
-        <a href="/guide">Guide</a> |
-        <a href="/scheduled">Scheduled</a> |
-        <a href="/series">Series</a>
-    </div>
+        <a href="/timeshift">Live TV DVR</a> |
+        <a href="/guide">Now / Next</a> |
+        <a href="/recordings">Recordings</a>
+    </p>
 
-    <div class="grid">
+    <div class="guide-wrap">
+        <div class="guide">
 
-        <div class="header">Channel</div>
-        <div class="header">Program 1</div>
-        <div class="header">Program 2</div>
-        <div class="header">Program 3</div>
-        <div class="header">Program 4</div>
-        <div class="header">Program 5</div>
-        <div class="header">Program 6</div>
-        <div class="header">Program 7</div>
-        <div class="header">Program 8</div>
+            <div class="cell header channel">Channel</div>
+            <div class="cell header">{{ grid[0]["programs"][0]["start"]|tvtime if grid and grid[0]["programs"]|length >
+                0 else "" }}</div>
+            <div class="cell header">{{ grid[0]["programs"][1]["start"]|tvtime if grid and grid[0]["programs"]|length >
+                1 else "" }}</div>
+            <div class="cell header">{{ grid[0]["programs"][2]["start"]|tvtime if grid and grid[0]["programs"]|length >
+                2 else "" }}</div>
+            <div class="cell header">{{ grid[0]["programs"][3]["start"]|tvtime if grid and grid[0]["programs"]|length >
+                3 else "" }}</div>
+            <div class="cell header">{{ grid[0]["programs"][4]["start"]|tvtime if grid and grid[0]["programs"]|length >
+                4 else "" }}</div>
+            <div class="cell header">{{ grid[0]["programs"][5]["start"]|tvtime if grid and grid[0]["programs"]|length >
+                5 else "" }}</div>
 
-        {% for ch in grid %}
+            {% for ch in grid %}
+            <div class="cell channel">
+                {{ ch["guide_number"] }}<br>
+                {{ ch["guide_name"] }}<br><br>
+                <a class="view-btn" href="/guide-view/{{ ch['guide_number'] }}">View</a>
+            </div>
 
-        <div class="channel">
-            {{ ch["guide_number"] }}<br>
-            {{ ch["guide_name"] }}
+            {% for p in ch["programs"][:6] %}
+            <div class="cell program {% if p['start']|is_live_now(p['stop']) %}live{% endif %}"
+                style="background: {{ p['category']|category_color }};">
+                <div class="time">
+                    {{ p["start"]|tvtime }} - {{ p["stop"]|tvtime }}
+                </div>
+
+                <div class="title">{{ p["title"] }}</div>
+
+                {% if p["subtitle"] %}
+                <div class="desc">{{ p["subtitle"] }}</div>
+                {% endif %}
+
+                {% if p["start"]|is_live_now(p["stop"]) %}
+                <div class="progress-bg">
+                    <div class="progress-fill" style="width:{{ p['start']|progress_percent(p['stop']) }}%;"></div>
+                </div>
+                <div class="live-text">
+                    ● LIVE NOW · {{ p["start"]|progress_percent(p["stop"]) }}% complete
+                </div>
+                {% endif %}
+
+                <form action="/schedule-program" method="post">
+                    <input type="hidden" name="channel" value="{{ ch['guide_number'] }}">
+                    <input type="hidden" name="title" value="{{ p['title'] }}">
+                    <input type="hidden" name="subtitle" value="{{ p['subtitle'] }}">
+                    <input type="hidden" name="start" value="{{ p['start'] }}">
+                    <input type="hidden" name="stop" value="{{ p['stop'] }}">
+                    <button type="submit">Record</button>
+                </form>
+            </div>
+            {% endfor %}
+
+            {% for i in range(6 - (ch["programs"][:6]|length)) %}
+            <div class="cell program">
+                <div class="desc">No guide data</div>
+            </div>
+            {% endfor %}
+            {% endfor %}
+
         </div>
-
-        {% for p in ch["programs"] %}
-
-        <div class="program" style="background: {{ p['category']|category_color }};">
-
-            <div class="title">
-                {{ p["title"] }}
-            </div>
-
-            {% if p["subtitle"] %}
-            <div class="subtitle">
-                {{ p["subtitle"] }}
-            </div>
-            {% endif %}
-
-            <div class="time">
-                {{ p["start"] }} → {{ p["stop"] }}
-            </div>
-
-            {% if p["category"] %}
-            <div class="category">
-                {{ p["category"] }}
-            </div>
-            {% endif %}
-
-            <form action="/schedule-program" method="post">
-                <input type="hidden" name="channel" value="{{ p['channel'] }}">
-                <input type="hidden" name="title" value="{{ p['title'] }}">
-                <input type="hidden" name="subtitle" value="{{ p['subtitle'] }}">
-                <input type="hidden" name="start" value="{{ p['start'] }}">
-                <input type="hidden" name="stop" value="{{ p['stop'] }}">
-                <button type="submit">● Record</button>
-            </form>
-
-            <form action="/series/add" method="post">
-                <input type="hidden" name="channel" value="{{ p['channel'] }}">
-                <input type="hidden" name="title" value="{{ p['title'] }}">
-                <button class="series" type="submit">🔁 Series</button>
-            </form>
-
-        </div>
-
-        {% endfor %}
-
-        {% set missing = 8 - (ch["programs"]|length) %}
-        {% for i in range(missing) %}
-        <div class="empty"></div>
-        {% endfor %}
-
-        {% endfor %}
-
     </div>
 
 </body>

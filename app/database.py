@@ -1,4 +1,5 @@
 import sqlite3
+import datetime
 from pathlib import Path
 
 
@@ -9,13 +10,18 @@ DB = BASE_DIR / "database" / "signaldvr.db"
 def connect():
     conn = sqlite3.connect(DB, timeout=30)
     conn.row_factory = sqlite3.Row
-
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA busy_timeout=30000")
     conn.execute("PRAGMA foreign_keys=ON")
-
     return conn
+
+
+def _ensure_column(db, table, column, definition):
+    cols = db.execute(f"PRAGMA table_info({table})").fetchall()
+    names = [c["name"] for c in cols]
+    if column not in names:
+        db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def init_db():
@@ -88,16 +94,7 @@ def init_db():
         """)
 
         _ensure_column(db, "series_recordings", "priority", "INTEGER DEFAULT 50")
-
         db.commit()
-
-
-def _ensure_column(db, table, column, definition):
-    existing = db.execute(f"PRAGMA table_info({table})").fetchall()
-    columns = [row["name"] for row in existing]
-
-    if column not in columns:
-        db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 # --------------------------------------------------
@@ -113,37 +110,13 @@ def list_recordings():
         """).fetchall()
 
 
-def add_recording(
-    filename,
-    channel,
-    title,
-    start_time,
-    end_time="",
-    size_bytes=0,
-    status="Recording"
-):
+def add_recording(filename, channel, title, start_time, end_time="", size_bytes=0, status="Recording"):
     with connect() as db:
         db.execute("""
             INSERT OR REPLACE INTO recordings
-            (
-                filename,
-                channel,
-                title,
-                start_time,
-                end_time,
-                size_bytes,
-                status
-            )
-            VALUES (?,?,?,?,?,?,?)
-        """, (
-            filename,
-            channel,
-            title,
-            start_time,
-            end_time,
-            size_bytes,
-            status
-        ))
+            (filename, channel, title, start_time, end_time, size_bytes, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (filename, channel, title, start_time, end_time, size_bytes, status))
         db.commit()
 
 
@@ -151,24 +124,15 @@ def finish_recording(filename, end_time, size_bytes):
     with connect() as db:
         db.execute("""
             UPDATE recordings
-            SET end_time=?,
-                size_bytes=?,
-                status='Recorded'
+            SET end_time=?, size_bytes=?, status='Recorded'
             WHERE filename=?
-        """, (
-            end_time,
-            size_bytes,
-            filename
-        ))
+        """, (end_time, size_bytes, filename))
         db.commit()
 
 
 def delete_recording(filename):
     with connect() as db:
-        db.execute(
-            "DELETE FROM recordings WHERE filename=?",
-            (filename,)
-        )
+        db.execute("DELETE FROM recordings WHERE filename=?", (filename,))
         db.commit()
 
 
@@ -190,17 +154,9 @@ def add_channel(number, name, url=""):
     with connect() as db:
         db.execute("""
             INSERT OR REPLACE INTO channels
-            (
-                guide_number,
-                guide_name,
-                url
-            )
-            VALUES (?,?,?)
-        """, (
-            number,
-            name,
-            url
-        ))
+            (guide_number, guide_name, url)
+            VALUES (?, ?, ?)
+        """, (number, name, url))
         db.commit()
 
 
@@ -224,31 +180,49 @@ def get_programs():
             FROM programs
             ORDER BY start
         """).fetchall()
-
         return [dict(r) for r in rows]
 
 
 def get_programs_for_channel(channel, limit=30):
+    now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+
     with connect() as db:
         rows = db.execute("""
             SELECT *
             FROM programs
             WHERE channel=?
+              AND substr(stop, 1, 14) > ?
             ORDER BY start
             LIMIT ?
-        """, (
-            channel,
-            limit
-        )).fetchall()
+        """, (channel, now, limit)).fetchall()
 
         return [dict(r) for r in rows]
 
 
+def get_current_program(channel, now=None):
+    if now is None:
+        now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+
+    with connect() as db:
+        row = db.execute("""
+            SELECT *
+            FROM programs
+            WHERE channel=?
+              AND substr(start, 1, 14) <= ?
+              AND substr(stop, 1, 14) > ?
+            ORDER BY start
+            LIMIT 1
+        """, (channel, now, now)).fetchone()
+
+        return dict(row) if row else None
+
+
 def get_now_next():
+    now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+
     with connect() as db:
         channels = db.execute("""
-            SELECT guide_number,
-                   guide_name
+            SELECT guide_number, guide_name
             FROM channels
             WHERE enabled=1
             ORDER BY guide_number
@@ -257,31 +231,41 @@ def get_now_next():
         result = []
 
         for ch in channels:
-            programs = db.execute("""
+            now_program = db.execute("""
                 SELECT title
                 FROM programs
                 WHERE channel=?
+                  AND substr(start, 1, 14) <= ?
+                  AND substr(stop, 1, 14) > ?
                 ORDER BY start
-                LIMIT 2
-            """, (
-                ch["guide_number"],
-            )).fetchall()
+                LIMIT 1
+            """, (ch["guide_number"], now, now)).fetchone()
+
+            next_program = db.execute("""
+                SELECT title
+                FROM programs
+                WHERE channel=?
+                  AND substr(start, 1, 14) > ?
+                ORDER BY start
+                LIMIT 1
+            """, (ch["guide_number"], now)).fetchone()
 
             result.append({
                 "guide_number": ch["guide_number"],
                 "guide_name": ch["guide_name"],
-                "now_title": programs[0]["title"] if len(programs) > 0 else None,
-                "next_title": programs[1]["title"] if len(programs) > 1 else None,
+                "now_title": now_program["title"] if now_program else None,
+                "next_title": next_program["title"] if next_program else None,
             })
 
         return result
 
 
 def get_guide_grid(limit_channels=20, limit_programs=8):
+    now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+
     with connect() as db:
         channels = db.execute("""
-            SELECT guide_number,
-                   guide_name
+            SELECT guide_number, guide_name
             FROM channels
             WHERE enabled=1
             ORDER BY guide_number
@@ -295,12 +279,10 @@ def get_guide_grid(limit_channels=20, limit_programs=8):
                 SELECT *
                 FROM programs
                 WHERE channel=?
+                  AND substr(stop, 1, 14) > ?
                 ORDER BY start
                 LIMIT ?
-            """, (
-                ch["guide_number"],
-                limit_programs
-            )).fetchall()
+            """, (ch["guide_number"], now, limit_programs)).fetchall()
 
             result.append({
                 "guide_number": ch["guide_number"],
@@ -319,22 +301,9 @@ def add_scheduled_recording(channel, title, subtitle, start, stop):
     with connect() as db:
         db.execute("""
             INSERT INTO scheduled_recordings
-            (
-                channel,
-                title,
-                subtitle,
-                start,
-                stop,
-                status
-            )
-            VALUES (?,?,?,?,?,'Scheduled')
-        """, (
-            channel,
-            title,
-            subtitle,
-            start,
-            stop
-        ))
+            (channel, title, subtitle, start, stop, status)
+            VALUES (?, ?, ?, ?, ?, 'Scheduled')
+        """, (channel, title, subtitle, start, stop))
         db.commit()
 
 
@@ -345,16 +314,12 @@ def list_scheduled_recordings():
             FROM scheduled_recordings
             ORDER BY start
         """).fetchall()
-
         return [dict(r) for r in rows]
 
 
 def delete_scheduled_recording(schedule_id):
     with connect() as db:
-        db.execute(
-            "DELETE FROM scheduled_recordings WHERE id=?",
-            (schedule_id,)
-        )
+        db.execute("DELETE FROM scheduled_recordings WHERE id=?", (schedule_id,))
         db.commit()
 
 
@@ -364,10 +329,7 @@ def update_schedule_status(schedule_id, status):
             UPDATE scheduled_recordings
             SET status=?
             WHERE id=?
-        """, (
-            status,
-            schedule_id
-        ))
+        """, (status, schedule_id))
         db.commit()
 
 
@@ -391,6 +353,29 @@ def expire_old_scheduled_recordings(now):
         """, (now,))
         db.commit()
 
+def list_active_schedules():
+    with connect() as db:
+        rows = db.execute("""
+            SELECT *
+            FROM scheduled_recordings
+            WHERE status='Recording'
+            ORDER BY start
+        """).fetchall()
+
+        return [dict(r) for r in rows]
+
+
+def fail_scheduled_recording(schedule_id, reason):
+    with connect() as db:
+        db.execute("""
+            UPDATE scheduled_recordings
+            SET status=?
+            WHERE id=?
+        """, (
+            reason,
+            schedule_id
+        ))
+        db.commit()
 
 # --------------------------------------------------
 # Series Recordings
@@ -400,20 +385,9 @@ def add_series_recording(title, channel="", only_new=0, priority=50):
     with connect() as db:
         db.execute("""
             INSERT INTO series_recordings
-            (
-                title,
-                channel,
-                only_new,
-                priority,
-                enabled
-            )
+            (title, channel, only_new, priority, enabled)
             VALUES (?, ?, ?, ?, 1)
-        """, (
-            title,
-            channel,
-            only_new,
-            priority
-        ))
+        """, (title, channel, only_new, priority))
         db.commit()
 
 
@@ -425,7 +399,6 @@ def list_series_recordings():
             WHERE enabled=1
             ORDER BY priority DESC, title
         """).fetchall()
-
         return [dict(r) for r in rows]
 
 
@@ -435,19 +408,13 @@ def set_series_priority(series_id, priority):
             UPDATE series_recordings
             SET priority=?
             WHERE id=?
-        """, (
-            priority,
-            series_id
-        ))
+        """, (priority, series_id))
         db.commit()
 
 
 def delete_series_recording(series_id):
     with connect() as db:
-        db.execute(
-            "DELETE FROM series_recordings WHERE id=?",
-            (series_id,)
-        )
+        db.execute("DELETE FROM series_recordings WHERE id=?", (series_id,))
         db.commit()
 
 
@@ -469,19 +436,14 @@ def apply_series_rules():
                     WHERE title=?
                       AND channel=?
                     ORDER BY start
-                """, (
-                    rule["title"],
-                    rule["channel"]
-                )).fetchall()
+                """, (rule["title"], rule["channel"])).fetchall()
             else:
                 programs = db.execute("""
                     SELECT *
                     FROM programs
                     WHERE title=?
                     ORDER BY start
-                """, (
-                    rule["title"],
-                )).fetchall()
+                """, (rule["title"],)).fetchall()
 
             for p in programs:
                 exists = db.execute("""
@@ -490,23 +452,12 @@ def apply_series_rules():
                     WHERE channel=?
                       AND title=?
                       AND start=?
-                """, (
-                    p["channel"],
-                    p["title"],
-                    p["start"]
-                )).fetchone()
+                """, (p["channel"], p["title"], p["start"])).fetchone()
 
                 if not exists:
                     db.execute("""
                         INSERT INTO scheduled_recordings
-                        (
-                            channel,
-                            title,
-                            subtitle,
-                            start,
-                            stop,
-                            status
-                        )
+                        (channel, title, subtitle, start, stop, status)
                         VALUES (?, ?, ?, ?, ?, 'Scheduled')
                     """, (
                         p["channel"],
@@ -526,33 +477,34 @@ def apply_series_rules():
 # --------------------------------------------------
 
 def get_schedule_conflicts(max_tuners=4):
-    with connect() as db:
-        rows = db.execute("""
-            SELECT *
-            FROM scheduled_recordings
-            WHERE status IN ('Scheduled','Recording')
-            ORDER BY start
-        """).fetchall()
+    rows = list_scheduled_recordings()
 
-    rows = [dict(r) for r in rows]
+    active_rows = [
+        r for r in rows
+        if r["status"] in ("Scheduled", "Recording")
+    ]
 
     conflicts = []
 
-    for r in rows:
-        overlap = []
+    for r in active_rows:
+        overlaps = []
 
-        for other in rows:
-            if (
-                other["start"][:14] < r["stop"][:14]
-                and other["stop"][:14] > r["start"][:14]
-            ):
-                overlap.append(other)
+        r_start = str(r["start"])[:14]
+        r_stop = str(r["stop"])[:14]
 
-        if len(overlap) > max_tuners:
+        for other in active_rows:
+            o_start = str(other["start"])[:14]
+            o_stop = str(other["stop"])[:14]
+
+            if o_start < r_stop and o_stop > r_start:
+                overlaps.append(other)
+
+        if len(overlaps) > max_tuners:
             conflicts.append({
                 "recording": r,
-                "count": len(overlap),
-                "overlap": overlap
+                "count": len(overlaps),
+                "max_tuners": max_tuners,
+                "overlap": overlaps,
             })
 
     return conflicts

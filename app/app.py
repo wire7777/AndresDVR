@@ -1,5 +1,5 @@
 from flask import Flask, send_from_directory, redirect, render_template, jsonify, request
-
+from app import scheduler_service
 from app import config
 from app.recorder import Recorder
 from app import stream_manager
@@ -9,6 +9,8 @@ from app import epg
 from app import search
 from app import thumbnails
 from app import timeshift
+from app import tuner_manager
+from app import guide_service
 
 import subprocess
 import shutil
@@ -21,16 +23,93 @@ recorder = Recorder()
 @app.template_filter("category_color")
 def category_color(category):
     colors = {
-        "Sports": "#0066cc",
-        "News": "#cc0000",
-        "Movie": "#7b1fa2",
-        "Comedy": "#ff9800",
-        "Kids": "#43a047",
-        "Drama": "#5c6bc0",
-        "Reality": "#8d6e63",
-        "Documentary": "#009688",
+        "Sports": "#1b5e20",
+        "News": "#0d47a1",
+        "Movie": "#4a148c",
+        "Movies": "#4a148c",
+        "Comedy": "#795548",
+        "Kids": "#ef6c00",
+        "Children": "#ef6c00",
+        "Drama": "#b71c1c",
+        "Reality": "#00695c",
+        "Documentary": "#5d4037",
+        "Music": "#ad1457",
     }
-    return colors.get(category or "", "#333333")
+    return colors.get(category or "", "#263238")
+
+
+
+@app.template_filter("status_badge")
+def status_badge(status):
+    status = status or ""
+
+    if status == "Recording":
+        return "🔴 Recording"
+    if status == "Recorded":
+        return "✅ Recorded"
+    if status == "Scheduled":
+        return "🕒 Scheduled"
+    if status == "Expired":
+        return "⌛ Expired"
+    if status.startswith("Failed"):
+        return "❌ " + status
+
+    return status
+
+
+
+@app.template_filter("tvtime")
+def tvtime(value):
+    if not value:
+        return ""
+
+    try:
+        from datetime import datetime
+
+        raw = str(value)[:14]
+        dt = datetime.strptime(raw, "%Y%m%d%H%M%S")
+
+        return dt.strftime("%I:%M %p").lstrip("0")
+    except Exception:
+        return str(value)
+    
+@app.template_filter("progress_percent")
+def progress_percent(start, stop):
+    try:
+        from datetime import datetime
+
+        now = datetime.now()
+        s = datetime.strptime(str(start)[:14], "%Y%m%d%H%M%S")
+        e = datetime.strptime(str(stop)[:14], "%Y%m%d%H%M%S")
+
+        if now <= s:
+            return 0
+
+        if now >= e:
+            return 100
+
+        total = (e - s).total_seconds()
+        elapsed = (now - s).total_seconds()
+
+        return int((elapsed / total) * 100)
+    except Exception:
+        return 0
+
+
+@app.template_filter("is_live_now")
+def is_live_now(start, stop):
+    try:
+        from datetime import datetime
+
+        now = datetime.now()
+        s = datetime.strptime(str(start)[:14], "%Y%m%d%H%M%S")
+        e = datetime.strptime(str(stop)[:14], "%Y%m%d%H%M%S")
+
+        return s <= now < e
+    except Exception:
+        return False
+
+
 
 
 for folder in [
@@ -199,6 +278,11 @@ def recordings_page():
     return render_template("recordings.html", recordings=recordings)
 
 
+@app.route("/recording/play/<path:filename>")
+def recording_player(filename):
+    return render_template("player.html", filename=filename)
+
+
 @app.route("/thumbs/<path:filename>")
 def thumbs(filename):
     return send_from_directory(config.THUMBNAILS, filename, as_attachment=False)
@@ -217,6 +301,25 @@ def api_timeshift_replay(seconds):
 def api_timeshift_skip(seconds):
     timeshift.seek_relative(seconds)
     return jsonify(timeshift.status())
+
+
+@app.route("/api/timeshift/now")
+def api_timeshift_now():
+    import datetime
+
+    status = timeshift.status()
+    channel_label = status.get("channel", "")
+    channel = channel_label.split(" ")[0] if channel_label else ""
+
+    now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    program = database.get_current_program(channel, now)
+
+    return jsonify({
+        "channel": channel_label,
+        "program": program,
+    })
+
+
 
 @app.route("/timeshift")
 def timeshift_page():
@@ -312,6 +415,22 @@ def api_programs():
     return jsonify(database.get_programs())
 
 
+@app.route("/api/tuners")
+def api_tuners():
+    return jsonify(tuner_manager.status())
+
+
+@app.route("/tuners")
+def tuners_page():
+    return render_template("tuners.html", tuners=tuner_manager.status())
+
+
+@app.route("/history")
+def history_page():
+    history = database.list_scheduled_recordings()
+    return render_template("history.html", history=history)
+
+
 @app.route("/health")
 def health():
     disk = shutil.disk_usage(config.RECORDINGS)
@@ -341,6 +460,8 @@ Free:  {disk.free / 1024 / 1024 / 1024:.1f} GB
 <h2>HDHomeRun</h2>
 <pre>{tuner}</pre>
 """
+scheduler_service.start_scheduler()
+guide_service.start_guide_updater()
 
 
 if __name__ == "__main__":

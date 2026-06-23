@@ -1,215 +1,140 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html>
 
 <head>
-    <meta charset="UTF-8">
-    <title>SignalDVR - Channel Guide</title>
-
+    <title>SignalDVR Channel Guide</title>
     <style>
         body {
-            margin: 0;
             background: #111;
             color: #eee;
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: Arial;
+            margin: 25px;
         }
 
-        header {
-            background: #1b1b1b;
-            border-bottom: 1px solid #333;
-            padding: 20px;
-        }
-
-        header h1 {
-            margin: 0;
-            color: #4da3ff;
-        }
-
-        header a {
+        a {
             color: #4da3ff;
             text-decoration: none;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: auto;
-            padding: 20px;
-        }
-
-        .program {
-            background: #1d1d1d;
+        .card {
             border: 1px solid #333;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            padding: 20px;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 14px;
         }
 
-        .title {
-            font-size: 24px;
-            color: white;
-            margin-bottom: 8px;
-        }
-
-        .subtitle {
-            color: #bbbbbb;
-            font-style: italic;
-            margin-bottom: 10px;
+        .live-card {
+            border-left: 5px solid #55ff88;
+            box-shadow: inset 0 0 0 1px #55ff88;
         }
 
         .time {
-            color: #ffd966;
+            color: #ddd;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+
+        .title {
+            font-size: 22px;
             font-weight: bold;
-            margin-bottom: 10px;
         }
 
-        .category {
-            color: #66ff99;
-            margin-bottom: 10px;
+        .subtitle {
+            color: #eee;
+            margin-top: 5px;
         }
 
-        .description {
-            color: #dddddd;
-            line-height: 1.5;
-            margin-bottom: 20px;
+        .desc {
+            color: #ddd;
+            margin-top: 8px;
+            line-height: 1.4;
         }
 
-        .buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
+        .progress-bg {
+            margin-top: 8px;
+            background: rgba(0, 0, 0, .35);
+            border-radius: 10px;
+            overflow: hidden;
+            height: 9px;
         }
 
-        .button {
-            display: inline-block;
-            background: #2c7be5;
+        .progress-fill {
+            height: 9px;
+            background: #55ff88;
+        }
+
+        .live-text {
+            font-size: 13px;
+            color: #55ff88;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+
+        button {
+            background: #2196f3;
             color: white;
-            text-decoration: none;
-            padding: 10px 18px;
-            border-radius: 6px;
-            border: none;
+            border: 0;
+            padding: 9px 14px;
+            border-radius: 7px;
             cursor: pointer;
-            font-size: 15px;
-        }
-
-        .button:hover {
-            background: #3d8df5;
-        }
-
-        .record {
-            background: #d83b3b;
-        }
-
-        .record:hover {
-            background: #ef4444;
-        }
-
-        .new {
-            display: inline-block;
-            background: green;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 5px;
-            margin-left: 10px;
-            font-size: 12px;
-        }
-
-        .rating {
-            display: inline-block;
-            background: #555;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 5px;
-            margin-left: 10px;
-            font-size: 12px;
+            margin-top: 10px;
         }
     </style>
-
 </head>
 
 <body>
 
-    <header>
+    <h1>📺 Channel {{ channel }}</h1>
 
-        <h1>📺 Channel {{ channel }}</h1>
+    <p>
+        <a href="/">Home</a> |
+        <a href="/guide">Now / Next</a> |
+        <a href="/grid">Grid</a> |
+        <a href="/timeshift">Live TV DVR</a>
+    </p>
 
-        <p>
-            <a href="/guide">← Back to Full Guide</a>
-        </p>
-
-    </header>
-
-    <div class="container">
-
-        {% for p in programs %}
-
-        <div class="program">
-
-            <div class="title">
-
-                {{ p["title"] }}
-
-                {% if p["is_new"] %}
-                <span class="new">NEW</span>
-                {% endif %}
-
-                {% if p["rating"] %}
-                <span class="rating">{{ p["rating"] }}</span>
-                {% endif %}
-
-            </div>
-
-            {% if p["subtitle"] %}
-            <div class="subtitle">
-                {{ p["subtitle"] }}
-            </div>
-            {% endif %}
-
-            <div class="time">
-                {{ p["start"] }} → {{ p["stop"] }}
-            </div>
-
-            {% if p["category"] %}
-            <div class="category">
-                {{ p["category"] }}
-            </div>
-            {% endif %}
-
-            {% if p["description"] %}
-            <div class="description">
-                {{ p["description"] }}
-            </div>
-            {% endif %}
-
-            <div class="buttons">
-                <form action="/schedule-program" method="post">
-
-                </form>
-                <form action="/schedule-program" method="post">
-                    <input type="hidden" name="channel" value="{{ p['channel'] }}">
-                    <input type="hidden" name="title" value="{{ p['title'] }}">
-                    <input type="hidden" name="subtitle" value="{{ p['subtitle'] }}">
-                    <input type="hidden" name="start" value="{{ p['start'] }}">
-                    <input type="hidden" name="stop" value="{{ p['stop'] }}">
-
-                    <button class="button record" type="submit">
-                        ⏺ Record This Program
-                    </button>
-                    <form action="/series/add" method="post" style="margin-top:8px;">
-                        <input type="hidden" name="channel" value="{{ p['channel'] }}">
-                        <input type="hidden" name="title" value="{{ p['title'] }}">
-
-                        <button class="button" type="submit">
-                            🔁 Record Series
-                        </button>
-                    </form>
-                </form>
-
-            </div>
-
+    {% for p in programs %}
+    <div class="card {% if p['start']|is_live_now(p['stop']) %}live-card{% endif %}"
+        style="background: {{ p['category']|category_color }};">
+        <div class="time">
+            {{ p["start"]|tvtime }} - {{ p["stop"]|tvtime }}
         </div>
 
-        {% endfor %}
+        {% if p["start"]|is_live_now(p["stop"]) %}
+        <div class="progress-bg">
+            <div class="progress-fill" style="width:{{ p['start']|progress_percent(p['stop']) }}%;"></div>
+        </div>
+        <div class="live-text">
+            ● LIVE NOW · {{ p["start"]|progress_percent(p["stop"]) }}% complete
+        </div>
+        {% endif %}
 
+        <div class="title">{{ p["title"] }}</div>
+
+        {% if p["subtitle"] %}
+        <div class="subtitle">{{ p["subtitle"] }}</div>
+        {% endif %}
+
+        {% if p["description"] %}
+        <div class="desc">{{ p["description"] }}</div>
+        {% endif %}
+
+        {% if p["category"] %}
+        <div class="desc">Category: {{ p["category"] }}</div>
+        {% endif %}
+
+        <form action="/schedule-program" method="post">
+            <input type="hidden" name="channel" value="{{ channel }}">
+            <input type="hidden" name="title" value="{{ p['title'] }}">
+            <input type="hidden" name="subtitle" value="{{ p['subtitle'] }}">
+            <input type="hidden" name="start" value="{{ p['start'] }}">
+            <input type="hidden" name="stop" value="{{ p['stop'] }}">
+            <button type="submit">Record This</button>
+        </form>
     </div>
+    {% else %}
+    <p>No upcoming guide data.</p>
+    {% endfor %}
 
 </body>
 

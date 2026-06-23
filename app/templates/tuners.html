@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+    <title>SignalDVR Tuners</title>
+    <style>
+        body { background:#111; color:#eee; font-family:Arial; margin:25px; }
+        a { color:#4da3ff; text-decoration:none; }
+        .card { background:#1d1d1d; border:1px solid #333; border-radius:12px; padding:16px; margin-bottom:14px; }
+        .busy { border-left:5px solid #ff5555; }
+        .idle { border-left:5px solid #55ff88; }
+        .state { font-weight:bold; }
+    </style>
+</head>
+<body>
+
+<h1>📡 SignalDVR Tuners</h1>
+
+<p>
+    <a href="/">Home</a> |
+    <a href="/timeshift">Live TV DVR</a> |
+    <a href="/scheduled">Scheduled</a> |
+    <a href="/health">Health</a>
+</p>
+
+{% for t in tuners %}
+<div class="card {{ t['state'] }}">
+    <h2>Tuner {{ t["tuner_id"] }}</h2>
+    <p class="state">State: {{ t["state"]|upper }}</p>
+    <p>Channel: {{ t["channel"] or "-" }}</p>
+    <p>Purpose: {{ t["purpose"] or "-" }}</p>
+    <p>Title: {{ t["title"] or "-" }}</p>
+    <p>Started: {{ t["started_at"] or "-" }}</p>
+</div>
+{% endfor %}
+
+</body>
+</html>

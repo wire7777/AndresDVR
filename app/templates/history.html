@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+    <title>SignalDVR Recording History</title>
+    <style>
+        body { background:#111; color:#eee; font-family:Arial; margin:25px; }
+        a { color:#4da3ff; text-decoration:none; }
+
+        .card {
+            background:#1d1d1d;
+            border:1px solid #333;
+            border-radius:12px;
+            padding:16px;
+            margin-bottom:14px;
+        }
+
+        .Recording { border-left:5px solid #ff5555; }
+        .Recorded { border-left:5px solid #55ff88; }
+        .Scheduled { border-left:5px solid #4da3ff; }
+        .Expired { border-left:5px solid #ffaa33; }
+        .Failed { border-left:5px solid #ff3333; }
+
+        .title { font-size:22px; font-weight:bold; }
+        .meta { color:#ccc; margin-top:8px; line-height:1.5; }
+    </style>
+</head>
+
+<body>
+
+<h1>📜 SignalDVR Recording History</h1>
+
+<p>
+    <a href="/">Home</a> |
+    <a href="/scheduled">Scheduled</a> |
+    <a href="/grid">Grid</a> |
+    <a href="/recordings">Recordings</a>
+</p>
+
+{% for h in history %}
+<div class="card {{ 'Failed' if h['status'].startswith('Failed') else h['status'] }}">
+    <div class="title">{{ h["title"] }}</div>
+
+    {% if h["subtitle"] %}
+    <div class="meta">{{ h["subtitle"] }}</div>
+    {% endif %}
+
+    <div class="meta">
+        <b>Status:</b> {{ h["status"]|status_badge }}<br>
+        <b>Channel:</b> {{ h["channel"] }}<br>
+        <b>Time:</b> {{ h["start"]|tvtime }} - {{ h["stop"]|tvtime }}
+    </div>
+</div>
+{% else %}
+<p>No recording history yet.</p>
+{% endfor %}
+
+</body>
+</html>

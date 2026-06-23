@@ -1,18 +1,19 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
 
 <head>
-    <title>Scheduled Recordings</title>
+    <title>SignalDVR Scheduled Recordings</title>
     <style>
         body {
             background: #111;
             color: #eee;
             font-family: Arial;
-            margin: 30px;
+            margin: 25px;
         }
 
         a {
             color: #4da3ff;
+            text-decoration: none;
         }
 
         .card {
@@ -20,41 +21,87 @@
             border: 1px solid #333;
             border-radius: 12px;
             padding: 16px;
-            margin: 12px 0;
+            margin-bottom: 14px;
         }
 
-        .time {
-            color: #ffd966;
+        .Recording {
+            border-left: 5px solid #ff5555;
         }
 
-        .status {
-            color: #55ff88;
+        .Recorded {
+            border-left: 5px solid #55ff88;
+        }
+
+        .Scheduled {
+            border-left: 5px solid #4da3ff;
+        }
+
+        .Expired {
+            border-left: 5px solid #ffaa33;
+        }
+
+        .Failed {
+            border-left: 5px solid #ff3333;
+        }
+
+        .title {
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .meta {
+            color: #ccc;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        button {
+            background: #aa2222;
+            color: white;
+            border: 0;
+            padding: 8px 12px;
+            border-radius: 7px;
+            cursor: pointer;
+            margin-top: 10px;
         }
     </style>
 </head>
 
 <body>
 
-    <h1>📅 Scheduled Recordings</h1>
-    <p><a href="/">Back Home</a> | <a href="/guide">Guide</a></p>
+    <h1>🗓 SignalDVR Scheduled Recordings</h1>
 
-    {% for r in scheduled %}
-    <div class="card">
-        <h2>{{ r["title"] }}</h2>
+    <p>
+        <a href="/">Home</a> |
+        <a href="/grid">Grid</a> |
+        <a href="/guide">Now / Next</a> |
+        <a href="/series">Series</a> |
+        <a href="/history">History</a>
+        <a href="/conflicts">Conflicts</a>
+    </p>
 
-        {% if r["subtitle"] %}
-        <p><b>{{ r["subtitle"] }}</b></p>
+    {% for s in scheduled %}
+    <div class="card {{ 'Failed' if s['status'].startswith('Failed') else s['status'] }}">
+        <div class="title">{{ s["title"] }}</div>
+
+        {% if s["subtitle"] %}
+        <div class="meta">{{ s["subtitle"] }}</div>
         {% endif %}
 
-        <p>Channel: {{ r["channel"] }}</p>
-        <p class="time">{{ r["start"] }} → {{ r["stop"] }}</p>
-        <p class="status">Status: {{ r["status"] }}</p>
-        <form action="/scheduled/delete/{{ r['id'] }}" method="post">
+        <div class="meta">
+            <b>Status:</b> {{ s["status"]|status_badge }}<br>
+            <b>Channel:</b> {{ s["channel"] }}<br>
+            <b>Time:</b> {{ s["start"]|tvtime }} - {{ s["stop"]|tvtime }}
+        </div>
+
+        {% if s["status"] == "Scheduled" %}
+        <form action="/scheduled/delete/{{ s['id'] }}" method="post">
             <button type="submit">Cancel</button>
         </form>
+        {% endif %}
     </div>
     {% else %}
-    <p>No scheduled recordings yet.</p>
+    <p>No scheduled recordings.</p>
     {% endfor %}
 
 </body>
