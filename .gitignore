@@ -66,3 +66,4 @@ logs/*
 # Temporary Files
 # ===========================
 *.tmpdatabase/*.backup
+database/*.backup
