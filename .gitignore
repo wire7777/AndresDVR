@@ -65,4 +65,4 @@ logs/*
 # ===========================
 # Temporary Files
 # ===========================
-*.tmp
+*.tmpdatabase/*.backup
