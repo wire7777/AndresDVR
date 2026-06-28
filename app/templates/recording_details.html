@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Recording Details - SignalDVR{% endblock %}
+
+{% block content %}
+
+<h2>ℹ️ Recording Details</h2>
+
+<div class="card">
+
+    {% if r.thumbnail %}
+        <img style="width:100%;max-width:520px;border-radius:12px;background:#000;"
+             src="/thumbs/{{ r.thumbnail }}">
+    {% endif %}
+
+    <h1>{{ r.title }}</h1>
+
+    {% if r.subtitle %}
+        <h3 style="color:#aaa;">{{ r.subtitle }}</h3>
+    {% endif %}
+
+    {% if r.description %}
+        <p>{{ r.description }}</p>
+    {% endif %}
+
+    <p><b>Channel:</b> {{ r.channel }}</p>
+    <p><b>Status:</b> {{ r.status }}</p>
+    <p><b>Recorded:</b> {{ r.start_time }}</p>
+    <p><b>Ended:</b> {{ r.end_time or "-" }}</p>
+    <p><b>Size:</b> {{ "%.1f"|format((r.size_bytes or 0)/1024/1024) }} MB</p>
+    <p><b>Category:</b> {{ r.category or "-" }}</p>
+    <p><b>Episode:</b> {{ r.episode or "-" }}</p>
+    <p><b>Original Air Date:</b> {{ r.originalairdate or "-" }}</p>
+    <p><b>File:</b> {{ r.filename }}</p>
+
+    <a class="button" href="/recording/play/{{ r.filename }}">▶ Play</a>
+    <a class="button" href="/play/{{ r.filename }}">⬇ Download</a>
+    <a class="button" href="/recordings">← Back</a>
+
+</div>
+
+{% endblock %}

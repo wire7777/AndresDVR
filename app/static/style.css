@@ -137,3 +137,30 @@ button,
         gap: 12px;
     }
 }
+
+/* Standard button colors */
+
+.button-primary {
+    background: #2196f3;
+}
+
+.button-success {
+    background: #2e7d32;
+}
+
+.button-danger {
+    background: #d93025;
+}
+
+.button-warning {
+    background: #ffb300;
+    color: #111;
+}
+
+.button-info {
+    background: #6f42c1;
+}
+
+.button-secondary {
+    background: #555;
+}

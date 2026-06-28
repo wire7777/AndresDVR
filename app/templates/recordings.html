@@ -51,9 +51,25 @@
         margin-bottom: 8px;
     }
 
-    .meta {
-        color: #ccc;
-        line-height: 1.6;
+    .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 14px;
+        margin-top: 12px;
+        margin-bottom: 18px;
+    }
+
+    .meta-grid div {
+        background: #222;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid #333;
+    }
+
+    .meta-grid strong {
+        color: #7fc7ff;
+        display: block;
+        margin-bottom: 4px;
     }
 
     .actions {
@@ -74,6 +90,11 @@
 
     .delete {
         background: #c62828;
+    }
+
+
+    .details {
+        background: #6f42c1;
     }
 
     @media (max-width:700px) {
@@ -139,50 +160,25 @@
         </div>
         {% endif %}
 
-        <div class="meta">
+        <div class="meta-grid">
 
-            <b>Channel:</b>
-            {{ r.channel }}
-            <br>
+            <div><strong>📺 Channel</strong><br>{{ r.channel }}</div>
 
-            <b>Status:</b>
-            {{ r.status }}
-            <br>
+            <div><strong>⏺ Status</strong><br>{{ r.status }}</div>
 
-            <b>Start:</b>
-            {{ r.start_time }}
-            <br>
+            <div><strong>📅 Recorded</strong><br>{{ r.start_time }}</div>
 
-            <b>End:</b>
-            {{ r.end_time or "-" }}
-            <br>
-
-            <b>Size:</b>
-            {{ "%.1f"|format((r.size_bytes or 0)/1024/1024) }} MB
-            <br>
-
-            <b>Filename:</b>
-            {{ r.filename }}
+            <div><strong>💾 Size</strong><br>
+                {{ "%.1f"|format((r.size_bytes or 0)/1024/1024) }} MB
+            </div>
 
         </div>
 
         <div class="actions">
-
-            <a class="button play" href="/recording/play/{{ r.filename }}">
-                ▶ Play
-            </a>
-
-            <a class="button download" href="/play/{{ r.filename }}">
-                ⬇ Download
-            </a>
-
-            <form action="/delete/{{ r.filename }}" method="post" style="display:inline;">
-
-                <button class="button delete" type="submit" onclick="return confirm('Delete this recording?');">
-                    🗑 Delete
-                </button>
-
-            </form>
+            <a class="button button-primary" href="/recording/play/{{ r.filename }}">▶ Play</a>
+            <a class="button button-success" href="/play/{{ r.filename }}">⬇ Download</a>
+            <a class="button button-info" href="/recording/details/{{ r.filename }}">ℹ Details</a>
+            <button class="button button-danger" type="submit">🗑 Delete</button>
 
         </div>
 

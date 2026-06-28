@@ -135,6 +135,23 @@ def stop():
     return redirect("/")
 
 
+@app.route("/recording/details/<path:filename>")
+def recording_details(filename):
+    recording = None
+
+    for r in database.list_recordings():
+        if r["filename"] == filename:
+            recording = dict(r)
+            break
+
+    if not recording:
+        return "Recording not found", 404
+
+    recording["thumbnail"] = thumbnails.make_thumbnail(recording["filename"])
+
+    return render_template("recording_details.html", r=recording)
+
+
 @app.route("/record-channel/<guide_number>", methods=["POST"])
 def record_channel(guide_number):
     ch = database.get_channel(guide_number)
