@@ -13,6 +13,7 @@ from app import scheduler_service
 from app import guide_service
 from app import cleanup_service
 from app.recorder import Recorder
+from app import schedules_direct
 
 import subprocess
 import shutil
@@ -577,7 +578,8 @@ def sd_get_lineups():
     for key in keys:
         database.set_setting(key, request.form.get(key, ""))
 
-    lineups = schedules_direct.get_lineups()
+    headends = schedules_direct.get_lineups()
+    lineups = schedules_direct.flatten_lineups(headends)
     database.save_sd_lineups(lineups)
     database.set_setting("sd_last_lineup_refresh", "test")
 
