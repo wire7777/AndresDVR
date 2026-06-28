@@ -1,5 +1,6 @@
 import sqlite3
 import datetime
+import json
 from pathlib import Path
 
 
@@ -15,6 +16,55 @@ def connect():
     conn.execute("PRAGMA busy_timeout=30000")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
+
+
+def save_sd_lineups(lineups):
+    import json
+
+    with connect() as db:
+        db.execute("DELETE FROM sd_lineups")
+
+        for lineup in lineups:
+            lineup_id = lineup.get("lineup", "")
+            name = lineup.get("name", lineup_id)
+            location = lineup.get("location", "")
+            transport = lineup.get("transport", "")
+
+            db.execute("""
+                INSERT OR REPLACE INTO sd_lineups
+                (lineup_id, name, location, transport, raw_json)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                lineup_id,
+                name,
+                location,
+                transport,
+                json.dumps(lineup),
+            ))
+
+        db.commit()
+
+
+def list_sd_lineups():
+    with connect() as db:
+        rows = db.execute("""
+            SELECT *
+            FROM sd_lineups
+            ORDER BY name
+        """).fetchall()
+
+        return [dict(r) for r in rows]
+
+
+def list_sd_lineups():
+    with connect() as db:
+        rows = db.execute("""
+        SELECT *
+        FROM sd_lineups
+        ORDER BY name
+        """).fetchall()
+
+        return [dict(r) for r in rows]
 
 def get_setting(key, default=""):
     with connect() as db:

@@ -76,10 +76,31 @@
                 <input type="text" name="sd_postal_code" value="{{ settings.get('sd_postal_code','') }}">
 
                 <label>Lineup</label>
-                <input type="text" name="sd_lineup" value="{{ settings.get('sd_lineup','') }}">
+                <select name="sd_lineup">
+                    <option value="">Select a lineup</option>
+
+                    {% for lineup in sd_lineups %}
+                    <option value="{{ lineup['lineup_id'] }}" {% if settings.get('sd_lineup')==lineup['lineup_id']
+                        %}selected{% endif %}>
+                        {{ lineup['name'] }} — {{ lineup['location'] }} {{ lineup['transport'] }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <div class="settings-row">
+
+                    <button class="btn-primary" type="submit" formaction="/settings/sd/lineups" formmethod="post">
+                        🔎 Get Lineups
+                    </button>
+
+                    <button class="btn-success" type="submit" formaction="/settings/sd/download" formmethod="post">
+                        📥 Download Guide
+                    </button>
+
+                </div>
 
                 <p class="muted">
-                    Schedules Direct support will use these settings later.
+                    Get Lineups will use your username, password, country, and ZIP code.
                 </p>
             </section>
 
@@ -266,6 +287,44 @@
         .settings-layout {
             grid-template-columns: 1fr;
         }
+    }
+
+
+
+    .settings-row {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .btn-primary {
+        background: #1f6feb;
+        color: white;
+        border: none;
+        padding: 10px 18px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: .2s;
+    }
+
+    .btn-primary:hover {
+        background: #2b7fff;
+    }
+
+    .btn-success {
+        background: #238636;
+        color: white;
+        border: none;
+        padding: 10px 18px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: .2s;
+    }
+
+    .btn-success:hover {
+        background: #2ea043;
     }
 </style>
 

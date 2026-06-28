@@ -93,7 +93,7 @@ def _start_recording(item):
         "title": item["title"],
     }
 
-    recorder.start_from_channel(ch)
+    recorder.start_from_schedule(ch, item)
     database.update_schedule_status(item["id"], "Recording")
 
 
