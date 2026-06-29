@@ -602,6 +602,24 @@ def sd_get_lineups():
     print(f"Schedules Direct lineups saved: {len(lineups)}", flush=True)
     return redirect("/settings")
 
+
+@app.route("/settings/sd/download", methods=["POST"])
+def sd_download_guide():
+    keys = [
+        "sd_username",
+        "sd_password",
+        "sd_country",
+        "sd_postal_code",
+        "sd_lineup",
+        "guide_days",
+        "guide_source",
+    ]
+
+    for key in keys:
+        database.set_setting(key, request.form.get(key, ""))
+
+    print("Schedules Direct guide download requested", flush=True)
+    return redirect("/settings")
 @app.route("/tuners")
 def tuners_page():
     return render_template("tuners.html", tuners=tuner_manager.status())
