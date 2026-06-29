@@ -341,3 +341,53 @@ def cache_schedules_for_matched_channels(days=1):
     mark_now("sd_last_schedule_download")
 
     return cache_file
+
+def cache_program_metadata():
+    import json
+    from pathlib import Path
+
+    if not cooldown_ok("sd_last_program_download", hours=12):
+        raise RuntimeError("Schedules Direct program metadata download skipped: cooldown active.")
+
+    schedules_file = Path("guide") / "schedules_direct_schedules.json"
+
+    if not schedules_file.exists():
+        raise RuntimeError("Schedules Direct schedules cache not found.")
+
+    with open(schedules_file) as f:
+        schedules = json.load(f)
+
+    program_ids = sorted({
+        p.get("programID")
+        for station in schedules
+        for p in station.get("programs", [])
+        if p.get("programID")
+    })
+
+    if not program_ids:
+        raise RuntimeError("No program IDs found in schedules cache.")
+
+    token = get_token()
+
+    response = requests.post(
+        f"{BASE_URL}/programs",
+        headers={"token": token},
+        json=program_ids,
+        timeout=60,
+    )
+
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Schedules Direct program metadata download failed: HTTP {response.status_code}"
+        )
+
+    data = response.json()
+
+    cache_file = Path("guide") / "schedules_direct_programs.json"
+
+    with open(cache_file, "w") as f:
+        json.dump(data, f, indent=2)
+
+    mark_now("sd_last_program_download")
+
+    return cache_file, len(program_ids)
