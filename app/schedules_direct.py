@@ -277,3 +277,67 @@ def import_cached_channel_map():
         db.commit()
 
     return len(data.get("map", []))
+
+def cache_schedules_for_matched_channels(days=1):
+    import datetime
+    import json
+    from pathlib import Path
+
+    if not cooldown_ok("sd_last_schedule_download", hours=12):
+        raise RuntimeError("Schedules Direct schedule download skipped: cooldown active.")
+
+    token = get_token()
+
+    with database.connect() as db:
+        rows = db.execute("""
+            SELECT DISTINCT station_id
+            FROM sd_channel_map
+            WHERE station_id IS NOT NULL
+              AND station_id != ''
+            ORDER BY station_id
+        """).fetchall()
+
+    station_ids = [str(r["station_id"]) for r in rows]
+
+    if not station_ids:
+        raise RuntimeError("No matched Schedules Direct station IDs found.")
+
+    today = datetime.date.today()
+    dates = [
+        (today + datetime.timedelta(days=i)).isoformat()
+        for i in range(days)
+    ]
+
+    payload = [
+        {
+            "stationID": station_id,
+            "date": dates,
+        }
+        for station_id in station_ids
+    ]
+
+    response = requests.post(
+        f"{BASE_URL}/schedules",
+        headers={"token": token},
+        json=payload,
+        timeout=60,
+    )
+
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Schedules Direct schedule download failed: HTTP {response.status_code}"
+        )
+
+    data = response.json()
+
+    cache_dir = Path("guide")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    cache_file = cache_dir / "schedules_direct_schedules.json"
+
+    with open(cache_file, "w") as f:
+        json.dump(data, f, indent=2)
+
+    mark_now("sd_last_schedule_download")
+
+    return cache_file
