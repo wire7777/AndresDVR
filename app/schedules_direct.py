@@ -391,3 +391,216 @@ def cache_program_metadata():
     mark_now("sd_last_program_download")
 
     return cache_file, len(program_ids)
+
+def preview_cached_program_import(limit=10):
+    import datetime
+    import json
+    from pathlib import Path
+
+    schedules_file = Path("guide") / "schedules_direct_schedules.json"
+    programs_file = Path("guide") / "schedules_direct_programs.json"
+
+    if not schedules_file.exists():
+        raise RuntimeError("Schedules cache not found.")
+
+    if not programs_file.exists():
+        raise RuntimeError("Program metadata cache not found.")
+
+    with open(schedules_file) as f:
+        schedules = json.load(f)
+
+    with open(programs_file) as f:
+        program_data = json.load(f)
+
+    programs_by_id = {
+        p.get("programID"): p
+        for p in program_data
+        if p.get("programID")
+    }
+
+    station_to_channel = {}
+
+    with database.connect() as db:
+        rows = db.execute("""
+            SELECT guide_number, station_id
+            FROM sd_channel_map
+        """).fetchall()
+
+    for row in rows:
+        station_to_channel[str(row["station_id"])] = row["guide_number"]
+
+    preview = []
+
+    for station in schedules:
+        station_id = str(station.get("stationID", ""))
+        channel = station_to_channel.get(station_id, "")
+
+        if not channel:
+            continue
+
+        for item in station.get("programs", []):
+            program_id = item.get("programID", "")
+            meta = programs_by_id.get(program_id, {})
+
+            title = ""
+            titles = meta.get("titles", [])
+            if titles:
+                title = titles[0].get("title120", "")
+
+            description = ""
+            descriptions = meta.get("descriptions", {})
+            descs = descriptions.get("description1000") or descriptions.get("description100")
+            if descs:
+                description = descs[0].get("description", "")
+
+            start_utc = item.get("airDateTime", "")
+            duration = int(item.get("duration", 0) or 0)
+
+            try:
+                start_dt = datetime.datetime.fromisoformat(
+                    start_utc.replace("Z", "+00:00")
+                )
+                stop_dt = start_dt + datetime.timedelta(seconds=duration)
+
+                start = start_dt.strftime("%Y%m%d%H%M%S")
+                stop = stop_dt.strftime("%Y%m%d%H%M%S")
+            except Exception:
+                start = start_utc
+                stop = ""
+
+            preview.append({
+                "channel": channel,
+                "title": title,
+                "description": description[:80],
+                "start": start,
+                "stop": stop,
+                "programID": program_id,
+                "new": item.get("new", False),
+                "video": item.get("videoProperties", []),
+                "audio": item.get("audioProperties", []),
+                "originalAirDate": meta.get("originalAirDate", ""),
+                "genres": meta.get("genres", []),
+            })
+
+            if len(preview) >= limit:
+                return preview
+
+    return preview
+
+def import_cached_programs():
+    import datetime
+    import json
+    from pathlib import Path
+
+    schedules_file = Path("guide") / "schedules_direct_schedules.json"
+    programs_file = Path("guide") / "schedules_direct_programs.json"
+
+    if not schedules_file.exists():
+        raise RuntimeError("Schedules cache not found.")
+
+    if not programs_file.exists():
+        raise RuntimeError("Program metadata cache not found.")
+
+    with open(schedules_file) as f:
+        schedules = json.load(f)
+
+    with open(programs_file) as f:
+        program_data = json.load(f)
+
+    programs_by_id = {
+        p.get("programID"): p
+        for p in program_data
+        if p.get("programID")
+    }
+
+    with database.connect() as db:
+        rows = db.execute("""
+            SELECT guide_number, station_id
+            FROM sd_channel_map
+        """).fetchall()
+
+        station_to_channel = {
+            str(row["station_id"]): row["guide_number"]
+            for row in rows
+        }
+
+        db.execute("DELETE FROM programs")
+
+        inserted = 0
+
+        for station in schedules:
+            station_id = str(station.get("stationID", ""))
+            channel = station_to_channel.get(station_id, "")
+
+            if not channel:
+                continue
+
+            for item in station.get("programs", []):
+                program_id = item.get("programID", "")
+                meta = programs_by_id.get(program_id, {})
+
+                titles = meta.get("titles", [])
+                title = titles[0].get("title120", "") if titles else ""
+
+                descriptions = meta.get("descriptions", {})
+                descs = descriptions.get("description1000") or descriptions.get("description100") or []
+                description = descs[0].get("description", "") if descs else ""
+
+                genres = meta.get("genres", [])
+                category = genres[0] if genres else ""
+
+                rating = ""
+                ratings = item.get("ratings", [])
+                if ratings:
+                    rating = ratings[0].get("code", "")
+
+                start_utc = item.get("airDateTime", "")
+                duration = int(item.get("duration", 0) or 0)
+
+                try:
+                    start_dt = datetime.datetime.fromisoformat(start_utc.replace("Z", "+00:00"))
+                    stop_dt = start_dt + datetime.timedelta(seconds=duration)
+                    start = start_dt.strftime("%Y%m%d%H%M%S")
+                    stop = stop_dt.strftime("%Y%m%d%H%M%S")
+                except Exception:
+                    start = start_utc
+                    stop = ""
+
+                db.execute("""
+                    INSERT INTO programs
+                    (
+                        channel, title, subtitle, description,
+                        start, stop, category, episode, rating, is_new,
+                        programid, station_id, originalairdate,
+                        video_properties, audio_properties,
+                        show_type, entity_type, genres
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    channel,
+                    title,
+                    "",
+                    description,
+                    start,
+                    stop,
+                    category,
+                    "",
+                    rating,
+                    1 if item.get("new") else 0,
+                    program_id,
+                    station_id,
+                    meta.get("originalAirDate", ""),
+                    ",".join(item.get("videoProperties", []) or []),
+                    ",".join(item.get("audioProperties", []) or []),
+                    meta.get("showType", ""),
+                    meta.get("entityType", ""),
+                    ",".join(genres),
+                ))
+
+                inserted += 1
+
+        db.commit()
+
+    database.apply_series_rules()
+
+    return inserted
