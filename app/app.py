@@ -555,6 +555,15 @@ def livebuffer(filename):
     return send_from_directory(config.LIVEBUFFER, filename, as_attachment=False)
 
 
+@app.route("/play/live/<channel>")
+def play_live_channel(channel):
+    ch = database.get_channel(channel)
+
+    if not ch:
+        return "Channel not found", 404
+
+    return redirect(ch["url"])
+
 @app.route("/api/guide")
 def api_guide():
     return jsonify(database.get_now_next())
@@ -568,6 +577,39 @@ def api_programs():
 @app.route("/api/tuners")
 def api_tuners():
     return jsonify(tuner_manager.status())
+
+
+@app.route("/api/kodi/channels")
+def api_kodi_channels():
+    channels = database.list_channels()
+    return jsonify([
+        {
+            "channel": c["guide_number"],
+            "name": c["guide_name"],
+            "play_url": f"/play/live/{c['guide_number']}",
+            "guide_url": f"/guide-view/{c['guide_number']}",
+        }
+        for c in channels
+        if c["enabled"] == 1
+    ])
+
+
+@app.route("/api/kodi/guide/<channel>")
+def api_kodi_guide(channel):
+    programs = database.get_programs_for_channel(channel, limit=200)
+    return jsonify([dict(p) for p in programs])
+
+@app.route("/api/kodi/recordings")
+def api_kodi_recordings():
+    recordings = []
+
+    for r in database.list_recordings():
+        item = dict(r)
+        item["play_url"] = f"/recording/play/{item['filename']}"
+        item["download_url"] = f"/play/{item['filename']}"
+        recordings.append(item)
+
+    return jsonify(recordings)
 
 
 @app.route("/settings")
