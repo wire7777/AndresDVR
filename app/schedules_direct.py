@@ -614,9 +614,11 @@ def import_cached_programs():
                         start, stop, category, episode, rating, is_new,
                         programid, station_id, originalairdate,
                         video_properties, audio_properties,
-                        show_type, entity_type, genres
+                        show_type, entity_type, genres,
+                        season, episode_title, runtime, year, language,
+                        cast, directors, writers, artwork
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     channel,
                     title,
@@ -636,8 +638,16 @@ def import_cached_programs():
                     meta.get("showType", ""),
                     meta.get("entityType", ""),
                     ",".join(genres),
+                    0,
+                    meta.get("episodeTitle150", ""),
+                    duration,
+                    int(str(meta.get("originalAirDate", "0"))[:4] or 0) if meta.get("originalAirDate") else 0,
+                    "",
+                    ",".join([c.get("name", "") for c in meta.get("cast", [])[:8]]),
+                    ",".join([c.get("name", "") for c in meta.get("crew", []) if c.get("role") == "Director"][:5]),
+                    ",".join([c.get("name", "") for c in meta.get("crew", []) if c.get("role") == "Writer"][:5]),
+                    str(meta.get("hasImageArtwork", "")),
                 ))
-
                 inserted += 1
 
         db.commit()
