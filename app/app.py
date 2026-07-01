@@ -592,6 +592,25 @@ def api_kodi_channels():
         for c in channels
         if c["enabled"] == 1
     ])
+    
+@app.route("/api/kodi/live")
+def api_kodi_live():
+    rows = database.get_now_next()
+
+    return jsonify([
+        {
+            "channel": r["guide_number"],
+            "name": r["guide_name"],
+            "now_title": r["now_title"],
+            "now_start": r["now_start"],
+            "now_stop": r["now_stop"],
+            "next_title": r["next_title"],
+            "next_start": r["next_start"],
+            "next_stop": r["next_stop"],
+            "play_url": f"/play/live/{r['guide_number']}",
+        }
+        for r in rows
+    ])
 
 
 @app.route("/api/kodi/guide/<channel>")
